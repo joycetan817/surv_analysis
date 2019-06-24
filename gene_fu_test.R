@@ -1,4 +1,9 @@
+# This script is for...
 # Jiayi Tan
-# 06/17/2019
+# 06/24/2019
 
-library(dyplr)
+rm(list = ls(all.names = TRUE))
+
+library(genefu)
+data(nkis)
+data(sig.ggi)
