@@ -1,6 +1,6 @@
-# This script is for survaval analysis of subtype samples with defined function
+# This script is for survaval analysis according to exhuasted T cell signature score of subtype samples
 # Jiayi Tan
-# 06/28/2019
+# 07/01/2019
 
 rm(list = ls(all.names = TRUE))
 sub_clin = function (clin, subtype, coloi) {
