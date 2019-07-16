@@ -8,7 +8,6 @@ sub_clin = function (clin, subtype, coloi) {
 	clin_oi = clin[temp_mask,]
 }
 
-
 cat("Loading genefu library...\n")
 library(genefu)
 cat("Loading METABRIC expression data...\n")
@@ -22,10 +21,8 @@ st = Sys.time()
 clin_info<-readRDS("merge_clin_info_manual_checked.RDS")
 print(Sys.time()-st)
 
-
-subtype_clin=sub_clin(clin = clin_info, subtype = "Her2", coloi = "Pam50Subtype")
-subtype = "Her2"
-
+subtype_clin=sub_clin(clin = clin_info, subtype = "Basal", coloi = "Pam50Subtype")
+subtype = "Basal"
 
 cat("Loading METABRIC annotation data...\n")
 library(readxl)
@@ -52,6 +49,7 @@ library(tibble)
 TRM_score<-rownames_to_column(TRM_score,var ="patient_id")
 colnames(TRM_score)[2]="sig.score"
 
+cat("Rank data by 25/75 cutoff of TRM sig.score")
 sub_score<-subset(TRM_score, TRM_score$patient_id %in% subtype_clin$pid)
 sub_score<-sub_score[order(-sub_score$sig.score),]
 library(dplyr)
