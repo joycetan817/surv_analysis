@@ -67,6 +67,7 @@ subtype_clin$dfs_status<-ifelse(c(subtype_clin$LR==0 & subtype_clin$DR==0),0,1)
 sub_score$DFS<-subtype_clin$DFS[match(sub_score$patient_id,subtype_clin$pid)]
 sub_score$dfs_status<-subtype_clin$dfs_status[match(sub_score$patient_id,subtype_clin$pid)]
 
+stop("JUST STOP!!!!!!!")
 
 cat("Select patient samples by 25/25 cutoff of exhuasted T sig.score")
 
@@ -76,6 +77,7 @@ bot_25<-subset(sub_score, sig.score < quantile(sig.score, prob = 25/100))
 top_25$score="t25%"
 bot_25$score="b25%"
 sub_score<-rbind(top_25,bot_25)
+
 
 
 filename<- paste("c:/Users/jitan/Documents/ET_", subtype, ".xlsx", sep = "")
@@ -132,3 +134,20 @@ filename<- paste("c:/Users/jitan/Documents/", subtype, "_ET_dfs.jpeg", sep = "")
 
 ggsave(file=filename, print(dfs_plot))
 
+
+sub_score$grade<-clin_info$grade[match(sub_score$patient_id, clin_info$pid)]
+sub_score$grade<-as.character(sub_score$grade)
+sub_score$grade<-as.numeric(sub_score$grade)
+sub_score<-na.omit(sub_score)
+
+sub_score$grade<-as.factor(sub_score$grade)
+
+cat("Perform ANOVA test by BC grade in BC subtype based on exhuasted T cell sig.score\n")
+p <- ggplot(sub_score, aes(x = grade, y = sig.score, color = grade))
+p + geom_point()+stat_compare_means(method = "anova") + theme_bw()
+
+cat("Perform t-test between each two groups based on BC grade\n")
+my_comparisons <- list( c("1", "2"), c("1", "3"), c("2", "3") )
+ggplot(sub_score, aes(x=grade, y=sig.score, color = grade)) + geom_point() + 
+    stat_compare_means(comparisons = my_comparisons)+ # Add pairwise comparisons p-value
+    stat_compare_means(label.y = 10) + theme_bw()
