@@ -58,7 +58,7 @@ colnames(ET_score)[2]="sig.score"
 cat("Generate exhuasted T cell sig. score in subtype\n")
 sub_score<-subset(ET_score, ET_score$patient_id %in% subtype_clin$pid)
 
-cat("Extract survival information from clinical data in subtype sig.score data frame")
+cat("Extract survival information from clinical data to subtype sig.score data frame")
 sub_score<-sub_score[order(-sub_score$sig.score),]
 sub_score$OS<-subtype_clin$T[match(subtype_clin$pid, sub_score$patient_id)]
 sub_score$os_status<-subtype_clin$DeathBreast[match(subtype_clin$pid, sub_score$patient_id)]
