@@ -84,9 +84,9 @@ data.expr<-rownames_to_column(data.expr, var ="patient_id")
 cat("Run Cox regression survival analysis by other gene expression signature adjusted for age, nodal, grade and tumor size\n")
 Cox_control = function (gene) {
 	gene_info<-subset(annot.meta, NCBI.gene.symbol == gene)
-	gene_probe<-select(data.expr, patient_id, test1$probe)
-	test2$gene<-rowMeans(test2[2:length(test2)]) # generate mean value of gene expression when more than one probe
-	sub_score$gene<-test2$gene[match(sub_score$patient_id, test2$patient_id)]
+	gene_probe<-select(data.expr, patient_id, gene_info$probe)
+	gene_probe$gene<-rowMeans(gene_probe[2:length(gene_probe)]) # generate mean value of gene expression when more than one probe
+	sub_score$gene<-gene_probe$gene[match(sub_score$patient_id, gene_probe$patient_id)]
 	colnames(sub_score)[length(sub_score)] <- gene 
 	return(sub_score)
 }
@@ -131,4 +131,29 @@ dfs_fit <- survfit(Surv(DFS, dfs_status) ~ CD8_score + score, data = CD8A_score)
 dfs_plot<-ggsurvplot(dfs_fit,
             pval = TRUE, conf.int = FALSE, ylab = "Disease-free survival", legend.labs=c("CD8hiTRMhi", "CD8hiTRMlo","CD8loTRMhi","CD8loTRMlo")
          )
+
+cat("Run correlation analysis between TRM and other genes\n")
+sub_cor<-sub_score[c(2,12:15)]
+M<-cor(sub_cor)
+
+cat("Compute the p-value of correlations\n")
+cor.mtest <- function(mat, ...) {
+     mat <- as.matrix(mat)
+     n <- ncol(mat)
+     p.mat<- matrix(NA, n, n)
+     diag(p.mat) <- 0
+     for (i in 1:(n - 1)) {
+         for (j in (i + 1):n) {
+             tmp <- cor.test(mat[, i], mat[, j], ...)
+             p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+         }
+     }
+     colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+     p.mat
+}
+p.mat <- cor.mtest(sub_cor)
+head(p.mat)
+library(corrplot)
+cor_plot<-corrplot(M, 
+         p.mat = p.mat, sig.level = 0.01)
 
