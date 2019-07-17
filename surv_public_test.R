@@ -1,4 +1,6 @@
-# This script is for survaval analysis according to exhuasted T cell signature score of subtype samples
+# This script is for survaval analysis according to any customized signature score of subtype samples
+# Weihua Guo, Ph.D.
+# 7/17/2019
 # Jiayi Tan
 # 07/01/2019
 
@@ -9,44 +11,72 @@ sub_clin = function (clin, subtype, coloi) {
 	clin_oi = intersect(IDC_info, clin[temp_mask,])
 }
 
-
+# Please load all the packages at the very begining of each script
 cat("Loading genefu library...\n")
-library(genefu)
+suppressMessages(library(genefu))
+library(xlsx)
+
+# Personally prefer to having a independent section for all the parameters or variables
+# which may be tuned for different inputs and tasks
+
+# For each variable, please at least leave a simple comments describing what this 
+# variable represent for
+
+data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
+expr_file = "metabric_expr_ilid.RDS" # Expression file
+clin_file = "merge_clin_info_manual_checked.xlsx" # clinical information
+annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
+sign_file = "trm_tex_brtissue_only_all_markers.xlsx" # Signature file
+
 cat("Loading METABRIC expression data...\n")
 st = Sys.time()
-
 ## Please use either the full path of the file or change the work directory here
-workdir = "//bri-net/citi/Peter Lee Group/Weihua/metabric_use"
-setwd(workdir) # Set work directory
-expr_file = paste(workdir,"metabric_expr_ilid.RDS", sep = "") # FULL path
-
-meta_expr<-readRDS("metabric_expr_ilid.RDS")
+meta_expr = readRDS(paste(data_dir, expr_file, sep = ""))
 print(Sys.time()-st)
-data.meta<-t(meta_expr)
+# print(meta_expr[1:9,1:6]) # Check the input in terminal
+# data.meta<-t(meta_expr)
 
 cat("Loading clinical data...\n")
 st = Sys.time()
 # clin_info<-readRDS("merge_clin_info_manual_checked.RDS") ### I canNOT find this file
-library(xlsx)
-clin_info <- read.xlsx("merge_clin_info_manual_checked.xlsx",1) #WG
+clin_info = read.xlsx(paste(data_dir, clin_file, sep = ""),1) 
+# print(head(clin_info))
 print(Sys.time()-st)
 
-stop("Tuning")
-subtype_clin=sub_clin(clin = clin_info, subtype = "LumA", coloi = "Pam50Subtype")
-subtype = "LumA"
+cat("Start to filter by clinical info...\n")
+sub_clin = clin_info
+cat("\tOriginal patient number: ", dim(sub_clin)[1], "\n")
+# For IDC
+sub_clin = sub_clin[sub_clin[,"oncotree_code"] == "IDC",]
+cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+# For LumA
+sub_clin = sub_clin[sub_clin[,"Pam50Subtype"] == "LumA",]
+cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+## Since my filters are not too many and not complex, I can directly write one line for each filter
+# subtype_clin=sub_clin(clin = clin_info, subtype = "LumA", coloi = "Pam50Subtype")
+# subtype = "LumA"
 
 
 cat("Loading METABRIC annotation data...\n")
-library(readxl)
-annot.meta<-read_excel("HumanHT_12_v30_R3_cleaned.xlsx", sheet = 1)
+# library(readxl)
+# annot.meta<-read_excel("HumanHT_12_v30_R3_cleaned.xlsx", sheet = 1)
+st = Sys.time()
+meta_annot = read.xlsx(paste(data_dir, annot_file, sep = ""),1)
+# print(head(meta_annot))
+print(Sys.time()-st)
+
+## Save this for later
+if (FALSE) {
 annot.meta<-annot.meta[c(5,9,14)]
 colnames(annot.meta)[1]="NCBI.gene.symbol"
 colnames(annot.meta)[2]="EntrezGene.ID"
-colnames(annot.meta)[3]="probe"
+colnames(annot.meta)[3]="probe"}
 
-cat("Load exhuasted T cell signature data\n")
-library(xlsx)
-ET<-read.xlsx(file="trm_tex_brtissue_only_all_markers.xlsx",4, header = TRUE)
+cat("Load gene signature...\n")
+# library(xlsx)
+sign = read.xlsx(file = paste(data_dir, sign_file, sep = ""), 4, header = TRUE)
+# ET<-read.xlsx(file="trm_tex_brtissue_only_all_markers.xlsx",4, header = TRUE)
+print(head(sign))
 ET<-ET[c(1,3)]
 colnames(ET)[1]="NCBI.gene.symbol"
 colnames(ET)[2]="coefficient"
