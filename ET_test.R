@@ -18,6 +18,7 @@ st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 workdir = "//bri-net/citi/Peter Lee Group/Weihua/metabric_use"
 setwd(workdir) # Set work directory
+expr_file = paste(workdir,"metabric_expr_ilid.RDS", sep = "") # FULL path
 
 meta_expr<-readRDS("metabric_expr_ilid.RDS")
 print(Sys.time()-st)
@@ -25,10 +26,12 @@ data.meta<-t(meta_expr)
 
 cat("Loading clinical data...\n")
 st = Sys.time()
-clin_info<-readRDS("merge_clin_info_manual_checked.RDS")
+# clin_info<-readRDS("merge_clin_info_manual_checked.RDS") ### I canNOT find this file
+library(xlsx)
+clin_info <- read.xlsx("merge_clin_info_manual_checked.xlsx",1) #WG
 print(Sys.time()-st)
 
-
+stop("Tuning")
 subtype_clin=sub_clin(clin = clin_info, subtype = "LumA", coloi = "Pam50Subtype")
 subtype = "LumA"
 
