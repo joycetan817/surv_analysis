@@ -14,6 +14,11 @@ cat("Loading genefu library...\n")
 library(genefu)
 cat("Loading METABRIC expression data...\n")
 st = Sys.time()
+
+## Please use either the full path of the file or change the work directory here
+workdir = "//bri-net/citi/Peter Lee Group/Weihua/metabric_use"
+setwd(workdir) # Set work directory
+
 meta_expr<-readRDS("metabric_expr_ilid.RDS")
 print(Sys.time()-st)
 data.meta<-t(meta_expr)
@@ -22,7 +27,6 @@ cat("Loading clinical data...\n")
 st = Sys.time()
 clin_info<-readRDS("merge_clin_info_manual_checked.RDS")
 print(Sys.time()-st)
-
 
 
 subtype_clin=sub_clin(clin = clin_info, subtype = "LumA", coloi = "Pam50Subtype")
