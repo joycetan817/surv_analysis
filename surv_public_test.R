@@ -11,12 +11,54 @@ sub_clin = function (clin, subtype, coloi) {
 	clin_oi = intersect(IDC_info, clin[temp_mask,])
 }
 
+survana <- function(data, type, plot = "", csv = "", cox = "") {
+	if(type == "os") {
+		cat("Analyzing overall survival...\n")
+		surv_data = data[,c("group","ost", "ose")]
+	}
+	if(type == "rfs") {
+		cat("Analyzing overall survival...\n")
+		surv_data = data[,c("group","rfst", "rfse")]
+	}
+	colnames(surv_data)[2:3] <- c("time", "status")
+	fit <- survfit(Surv(time, status) ~ group, data=surv_data)
+	fit_df <- data.frame(time = fit$time, n.risk = fit$n.risk,
+			     n.event = fit$n.event, n.censor = fit$n.censor,
+			     surv = fit$surv, upper = fit$upper, lower = fit$lower)
+	if (cox != "") {
+		res.cox <- coxph(Surv(time, status) ~ group, data=surv_data)
+		print(summary(res.cox))
+		cox_rds <- paste(cox, lab, "_survana_cox_res.rds", sep="")
+		saveRDS(res.cox, file=cox_rds)}
+	if (csv != "") {
+		surv_rescsv <- paste(csv, lab, "_survana_res.csv", sep="")
+		write.csv(fit_df, file=surv_rescsv)}
+	if (plot != "") {
+		surv_plot <- paste(plot, lab, "_survana_curves.tiff", sep="")
+		survcurv <- ggsurvplot(fit, data = surv_data,
+				       xlim = c(0,10000), ylim = c(0.00, 1.00),
+				       pval = TRUE, pval.size = 6, pval.coord = c(0, 0.2),
+				       conf.int = TRUE, conf.int.alpha = 0.2,
+				       xlab = "Time (days)", ylab = lab, legend.title = "Tex signature score",
+				       legend.labs = c("Low", "High"),
+#                                      surv.median.line = "hv",
+				       ggtheme = theme_classic(),
+				       palette = c("#E7B800", "#2E9FDF"), 
+				       font.x = c(14, "bold"), font.y = c(18, "bold"), 
+				       font.tickslab = c(16, "plain"), font.legend = c(18, "bold"),
+				       risk.table = FALSE, ncensor.plot = FALSE)
+		note_on_plot <- expression(paste("n" ["High"], " = 130\t", "n" ["Low"], " = 130\t"))
+		survcurv$plot <- survcurv$plot + annotate("text", x=2000, y=0.1, label=note_on_plot, size = 6)
+	}
+}
+
 # Please load all the packages at the very begining of each script
 cat("Loading genefu library...\n")
 suppressMessages(library(genefu))
 suppressMessages(library(readxl))
 suppressMessages(library(ggplot2))
-
+suppressMessages(library(survival))
+suppressMessages(library(survminer))
 
 # Personally prefer to having a independent section for all the parameters or variables
 # which may be tuned for different inputs and tasks
@@ -32,12 +74,12 @@ data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with
 sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with signatures and corresponding results
 
 expr_file = "metabric_expr_ilid.RDS" # Expression file
-clin_file = "merge_clin_info.xlsx" # clinical information
+clin_rds = "merge_clin_info_v3.RDS" # clinical information with merged disease-free survival
 annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
 # sign_file = "trm_tex_brtissue_only_all_markers.xlsx" # Signature file
 sign_file = "loi_trm_signature.txt" # Signature file
 
-pamst = "LumA"
+pamst = "Basal"
 gp_app = "oneqcut"
 qcut = 0.25
 
@@ -53,15 +95,29 @@ print(Sys.time()-st)
 cat("Loading clinical data...\n")
 st = Sys.time()
 # clin_info<-readRDS("merge_clin_info_manual_checked.RDS") ### I canNOT find this file
-clin_info = as.data.frame(read_excel(paste(data_dir, clin_file, sep = ""),1))
 # print(head(clin_info))
+## To merge the RFS
+if (FALSE) {
+	clin_file = "merge_clin_info.xlsx" # clinical information
+	clin_info = as.data.frame(read_excel(paste(data_dir, clin_file, sep = ""),1))
+	cat("Generate the relapse-free survival...\n")
+	cat("NOTE: the script will be quited after this...\n")
+	clin_info$TOR = ifelse(clin_info$TLR > clin_info$TDR, clin_info$TDR, clin_info$TLR)
+	clin_info$OR = ifelse(clin_info$TLR > clin_info$TDR, clin_info$DR, clin_info$LR)
+# 	print(clin_info[sample(dim(clin_info)[1], 9),]) # Random select 9 patients to check
+	rds_file = paste(data_dir, clin_rds, sep = "")
+	saveRDS(clin_info, file = rds_file)
+	cat("Save the clinical information to ", rds_file, "\n")
+	q(save = "no")
+}
+clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
 print(Sys.time()-st)
 
 cat("Start to filter by clinical info...\n")
 sub_clin = clin_info
 cat("\tOriginal patient number: ", dim(sub_clin)[1], "\n")
 # For IDC
-sub_clin = sub_clin[sub_clin[,"oncotree_code"] == "IDC",]
+# sub_clin = sub_clin[sub_clin[,"oncotree_code"] %in% c("IDC"),]
 sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 # For LumA
@@ -144,30 +200,60 @@ cat("Generate subtype signature score and survival data\n")
 sc_res = as.data.frame(sig_score$score)
 colnames(sc_res) = "sig_score"
 sc_res$pid = rownames(sc_res)
-print(head(sc_res))
-
-print(head(sub_clin))
-print(dim(sub_clin))
-
-
-# print(sub_clin$pid)
-print(head(sc_res))
-
 sub_scres = sc_res[sc_res$pid %in% sub_clin$pid,]
+
 
 ## Histogram for sig.score
 cat("Generate histogram plot of signature score\n")
 title = paste(db_name, sg_name, pamst, "IDC", sep = "  ")
-sc_hist = ggplot(sub_score, aes(x=sig_score)) + 
-	geom_histogram(color="darkblue", fill="lightblue") +
+sc_hist = ggplot(sub_scres, aes(x=sig_score)) + 
+	geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.036) +
 	labs(title=title, x="sig.score", y = "Count") + 
 	theme_classic()
+sc_hist_bld = ggplot_build(sc_hist)
+sc_hist_data = sc_hist_bld$data[[1]]
+zero_x = sc_hist_data[sc_hist_data$count == 0,"x"]
+right_zero_count = sum(sc_hist_data[sc_hist_data$x>=zero_x[1],"count"])
+print(right_zero_count)
+sc_hist = sc_hist + geom_vline(xintercept = zero_x[1], size = 1, colour = "grey",linetype = "dashed")
+if (gp_app == "oneqcut") {
+	qcov = quantile(sub_scres$sig_score, c(1-qcut)) # quantile cutoff value
+	# Add line for cutoff value
+	sc_hist = sc_hist + 
+		geom_vline(xintercept = qcov[[1]], size = 1, colour = "purple",linetype = "dotdash")
+	sc_hist = sc_hist + annotate("text", label = paste("Single cutoff value:\n", format(qcov[[1]],digit = 3), "(", 1-qcut, ")"),
+				     hjust = 0, x = qcov[[1]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
 
+}
+sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_zero_count[1], 
+						   "\n Percentile:", format(right_zero_count[1]/dim(sub_scres)[1]*100, digit = 4)), 
+		 x = zero_x[1], y = max(sc_hist_data$count), size = 4.5, colour = "black")
 hist_tif = paste(sign_dir, db_name, sg_name, pamst, "IDC.tiff", sep = "_")
+ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in")
 
-ggsave(sc_hist, file = hist_tif)
+# Assign groups
+if (length(qcov) == 1) {
+	sub_scres$group = "Medium"
+	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"
+	sub_scres[sub_scres$sig_score > qcov[[1]],"group"] = "High"
+}
 
-print(dim(sub_scres))
+# Assign survival data
+cat("Extract survival information from clinical data to subtype sig.score data frame\n")
+sub_scres$ost = 0
+sub_scres$ose = 0
+sub_scres$rfst = 0
+sub_scres$rfse = 0
+# For overall survival
+sub_scres[sub_clin$pid,"ost"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"T"]
+sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathBreast"]
+# For disease-free survival
+sub_scres[sub_clin$pid,"rfst"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"TOR"]
+sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
+
+print(head(sub_scres))
+survana(data = sub_scres, type = "os")
+
 q(save = "no")
 
 # ET<-ET[c(1,3)]
@@ -185,34 +271,34 @@ q(save = "no")
 # ET_score<-rownames_to_column(ET_score,var ="patient_id")
 # colnames(ET_score)[2]="sig.score"
 
-cat("Generate exhuasted T cell sig. score in subtype\n")
-sub_score<-subset(ET_score, ET_score$patient_id %in% subtype_clin$pid)
+# cat("Generate exhuasted T cell sig. score in subtype\n")
+# sub_score<-subset(ET_score, ET_score$patient_id %in% subtype_clin$pid)
 
-cat("Extract survival information from clinical data to subtype sig.score data frame")
-sub_score<-sub_score[order(-sub_score$sig.score),]
-sub_score$OS<-subtype_clin$T[match(subtype_clin$pid, sub_score$patient_id)]
-sub_score$os_status<-subtype_clin$DeathBreast[match(subtype_clin$pid, sub_score$patient_id)]
-subtype_clin$DFS<-ifelse(subtype_clin$TLR>subtype_clin$TDR,subtype_clin$TDR,subtype_clin$TLR)
-subtype_clin$dfs_status<-ifelse(c(subtype_clin$LR==0 & subtype_clin$DR==0),0,1) 
-sub_score$DFS<-subtype_clin$DFS[match(sub_score$patient_id,subtype_clin$pid)]
-sub_score$dfs_status<-subtype_clin$dfs_status[match(sub_score$patient_id,subtype_clin$pid)]
+# cat("Extract survival information from clinical data to subtype sig.score data frame")
+# sub_score<-sub_score[order(-sub_score$sig.score),]
+# sub_score$OS<-subtype_clin$T[match(subtype_clin$pid, sub_score$patient_id)]
+# sub_score$os_status<-subtype_clin$DeathBreast[match(subtype_clin$pid, sub_score$patient_id)]
+# subtype_clin$DFS<-ifelse(subtype_clin$TLR>subtype_clin$TDR,subtype_clin$TDR,subtype_clin$TLR)
+# subtype_clin$dfs_status<-ifelse(c(subtype_clin$LR==0 & subtype_clin$DR==0),0,1) 
+# sub_score$DFS<-subtype_clin$DFS[match(sub_score$patient_id,subtype_clin$pid)]
+# sub_score$dfs_status<-subtype_clin$dfs_status[match(sub_score$patient_id,subtype_clin$pid)]
 
-stop("JUST STOP!!!!!!!")
+# stop("JUST STOP!!!!!!!")
 
-cat("Select patient samples by 25/25 cutoff of exhuasted T sig.score")
+# cat("Select patient samples by 25/25 cutoff of exhuasted T sig.score")
 
-library(dplyr)
-top_25<-subset(sub_score, sig.score > quantile(sig.score, prob = 1 - 25/100))
-bot_25<-subset(sub_score, sig.score < quantile(sig.score, prob = 25/100))
-top_25$score="t25%"
-bot_25$score="b25%"
-sub_score<-rbind(top_25,bot_25)
+# library(dplyr)
+# top_25<-subset(sub_score, sig.score > quantile(sig.score, prob = 1 - 25/100))
+# bot_25<-subset(sub_score, sig.score < quantile(sig.score, prob = 25/100))
+# top_25$score="t25%"
+# bot_25$score="b25%"
+# sub_score<-rbind(top_25,bot_25)
 
 
 
-filename<- paste("c:/Users/jitan/Documents/ET_", subtype, ".xlsx", sep = "")
-library(xlsx)
-write.xlsx(sub_score, filename)
+# filename<- paste("c:/Users/jitan/Documents/ET_", subtype, ".xlsx", sep = "")
+# library(xlsx)
+# write.xlsx(sub_score, filename)
 
 
 
