@@ -92,7 +92,10 @@ suppressMessages(library(survminer))
 
 work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
 db_name = "metabric"
-sg_name = "loi_trm"
+sg_name = "loi_trm" # Loi's TRM sig
+sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
+
+
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
 sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with signatures and corresponding results
@@ -101,17 +104,19 @@ expr_file = "metabric_expr_ilid.RDS" # Expression file
 clin_rds = "merge_clin_info_v3.RDS" # clinical information with merged disease-free survival
 annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
 # sign_file = "trm_tex_brtissue_only_all_markers.xlsx" # Signature file
-sign_file = "loi_trm_signature.txt" # Signature file
-# 
+# sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
+sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
-pamst = "LumB"
-gp_app = "oneqcut"
-# gp_app = "symqcut"
+
+pamst = ""
+hrtype = c("P", "-", "N")
+# gp_app = "oneqcut"
+gp_app = "symqcut"
 
 qcut = 0.25 # This is TOP quantile for oneqcut approach
 
 # Work for experiment records
-res_folder = "top25bot75_loi_trm_LumB_all_metabric" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_ER+_IDC_metabric" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -153,16 +158,55 @@ cat("Start to filter by clinical info...\n")
 sub_clin = clin_info
 cat("\tOriginal patient number: ", dim(sub_clin)[1], "\n")
 # For IDC
-# sub_clin = sub_clin[sub_clin[,"oncotree_code"] %in% c("IDC"),]
+sub_clin = sub_clin[sub_clin[,"oncotree_code"] %in% c("IDC"),]
 sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
-# For LumA
-sub_clin = sub_clin[sub_clin[,"Pam50Subtype"] == pamst,]
-sub_clin = sub_clin[complete.cases(sub_clin$pid),]
-cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+if (pamst != "") {
+	cat("Using PAM50 as molecular subtype classifier: ", pamst, "\n")
+	sub_clin = sub_clin[sub_clin[,"Pam50Subtype"] == pamst,]
+	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 ## Since my filters are not too many and not complex, I can directly write one line for each filter
 # subtype_clin=sub_clin(clin = clin_info, subtype = "LumA", coloi = "Pam50Subtype")
 # subtype = "LumA"
+} else {
+	if (hrtype != "") {
+		if (length(hrtype) != 3) {stop("Not enough info for hormone receptor status!!!")}
+		cat("\tER: ", hrtype[1], "\n")
+		if (hrtype[1] == "P") {
+			sub_clin = sub_clin[sub_clin$ER.Expr == "+",]
+			sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+		}
+		if (hrtype[1] == "N") {
+			sub_clin = sub_clin[sub_clin$ER.Expr == "-",]
+			sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+		}
+		cat("\t\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+
+		cat("\tPR: ", hrtype[2], "\n")
+		if (hrtype[2] == "P") {
+			sub_clin = sub_clin[sub_clin$PR.Expr == "+",]
+			sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+		}
+		if (hrtype[2] == "N") {
+			sub_clin = sub_clin[sub_clin$PR.Expr == "-",]
+			sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+		}
+		cat("\t\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+
+		cat("\tHer2: ", hrtype[3], "\n")
+		if (hrtype[3] == "P") {
+			sub_clin = sub_clin[sub_clin$Her2.Expr == "+",]
+			sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+		}
+		if (hrtype[3] == "N") {
+			sub_clin = sub_clin[sub_clin$Her2.Expr == "-",]
+			sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+		}
+		cat("\t\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+	}
+}
+
 
 
 cat("Loading METABRIC annotation data...\n")
