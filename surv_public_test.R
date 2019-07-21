@@ -12,7 +12,7 @@ sub_clin = function (clin, subtype, coloi) {
 }
 
 survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "", 
-		    cox = "", coxfac = c("age","grade","tsize","node_stat"), multicox = TRUE) {
+		    cox = "", coxfac = c("age","grade","tsize","node_stat"), multicox = TRUE, gdoi = 0) {
 	# NOTE: plot/csv/cox should be a folder directory where to store the results
 	# NOTE: gptype should be the definition or basis of the grouping method, default is signature score.
 
@@ -40,7 +40,9 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 	if (cox != "") {
 		if (multicox) {
 			cat("\tMulti-variant Cox analysis with ", coxfac, "\n")
-			res.cox <- coxph(Surv(time, status) ~ group+age+grade+tsize+node_stat, data=surv_data)
+			if (gdoi == 0) {
+				res.cox <- coxph(Surv(time, status) ~ group+age+grade+tsize+node_stat, data=surv_data)
+			} else {res.cox <- coxph(Surv(time, status) ~ group+age+tsize+node_stat, data=surv_data)}
 		} else {
 			cat("\tSingle-variant Cox analysis with ", gptype, "\n")
 			res.cox <- coxph(Surv(time, status) ~ group, data=surv_data)
@@ -108,15 +110,16 @@ annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
 sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
 
-pamst = ""
-hrtype = c("P", "-", "N")
-# gp_app = "oneqcut"
-gp_app = "symqcut"
-
+cantype = "IDC" # cancer type: IDC/DCIS
+pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
+gdoi = c(1) # Grade of interest: 1/2/3
+hrtype = c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
+sig_save = FALSE
+gp_app = "symqcut" # oneqcut: one quantile cutoff, symqcut: symmetric quantile cutoff
 qcut = 0.25 # This is TOP quantile for oneqcut approach
 
 # Work for experiment records
-res_folder = "sym25_tex_ER+_IDC_metabric" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_ER+_IDC_G1_metabric" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -157,10 +160,19 @@ print(Sys.time()-st)
 cat("Start to filter by clinical info...\n")
 sub_clin = clin_info
 cat("\tOriginal patient number: ", dim(sub_clin)[1], "\n")
-# For IDC
-sub_clin = sub_clin[sub_clin[,"oncotree_code"] %in% c("IDC"),]
-sub_clin = sub_clin[complete.cases(sub_clin$pid),]
-cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+if (cantype !=  "") {
+	# For IDC
+	sub_clin = sub_clin[sub_clin[,"oncotree_code"] %in% cantype,]
+	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+}
+
+if (gdoi != 0) {
+	# print(head(sub_clin))
+	sub_clin = sub_clin[sub_clin[,"grade"] %in% gdoi,]
+	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+}
 if (pamst != "") {
 	cat("Using PAM50 as molecular subtype classifier: ", pamst, "\n")
 	sub_clin = sub_clin[sub_clin[,"Pam50Subtype"] == pamst,]
@@ -207,6 +219,7 @@ if (pamst != "") {
 	}
 }
 
+if (dim(sub_clin)[1] <= 3) {stop("TOO SMALL SAMPLE SIZE!!!")}
 
 
 cat("Loading METABRIC annotation data...\n")
@@ -272,9 +285,9 @@ ssin = list("data" = ssdata, "annot" = ssannot, "x" = sssign)
 cat("Run sig.score in all patient samples\n")
 sig_score <- sig.score(x=sssign, data=ssdata, annot=ssannot, do.mapping=TRUE, signed=TRUE, verbose=TRUE)
 # print(head(sig_score$score))
-if (FALSE) {
+if (sig_save) {
 	st = Sys.time()
-	cat("Saving sig.score input and output to ", ssin, "\n")
+	cat("Saving sig.score input and output to ", res_dir, "\n")
 	saveRDS(ssin, file = paste(res_dir, "sig_score_inputs.RDS", sep = ""))
 	saveRDS(sig_score, file = paste(res_dir, "sig_score_outputs.RDS", sep = ""))
 	print(Sys.time()-st)
@@ -299,7 +312,7 @@ sc_hist_bld = ggplot_build(sc_hist)
 sc_hist_data = sc_hist_bld$data[[1]]
 zero_x = sc_hist_data[sc_hist_data$count == 0,"x"]
 right_zero_count = sum(sc_hist_data[sc_hist_data$x>=zero_x[1],"count"])
-print(right_zero_count)
+# print(right_zero_count)
 sc_hist = sc_hist + geom_vline(xintercept = zero_x[1], size = 1, colour = "grey",linetype = "dashed")
 if (gp_app == "oneqcut") {
 	cat("Group the patient by one quantile cutoff: ", qcut,"\n")
@@ -375,9 +388,10 @@ if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 print(head(sub_scres))
 
 
-survana(data = sub_scres, type = "os", plot = res_dir, gptype = "TRM sig.score", cox = res_dir)
-survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = "TRM sig.score", cox = res_dir)
-
+survana(data = sub_scres, type = "os", plot = res_dir, gptype = "TRM sig.score", 
+	cox = res_dir, coxfac = c("age","tsize","node_stat"), gdoi = gdoi)
+survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = "TRM sig.score", 
+	cox = res_dir, coxfac = c("age","tsize","node_stat"), gdoi = gdoi)
 q(save = "no")
 
 # ET<-ET[c(1,3)]
