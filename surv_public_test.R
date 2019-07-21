@@ -11,35 +11,56 @@ sub_clin = function (clin, subtype, coloi) {
 	clin_oi = intersect(IDC_info, clin[temp_mask,])
 }
 
-survana <- function(data, type, plot = "", csv = "", cox = "") {
+survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "", 
+		    cox = "", coxfac = c("age","grade","tsize","node_stat"), multicox = TRUE) {
+	# NOTE: plot/csv/cox should be a folder directory where to store the results
+	# NOTE: gptype should be the definition or basis of the grouping method, default is signature score.
+
 	if(type == "os") {
 		cat("Analyzing overall survival...\n")
-		surv_data = data[,c("group","ost", "ose")]
+		surv_data = data[,c("group","ost", "ose", coxfac)]
+		lab = "Overall survival"
 	}
 	if(type == "rfs") {
-		cat("Analyzing overall survival...\n")
-		surv_data = data[,c("group","rfst", "rfse")]
+		cat("Analyzing relapse-free survival...\n")
+		surv_data = data[,c("group","rfst","rfse", coxfac)]
+		lab = "Relapse-free survival"
 	}
 	colnames(surv_data)[2:3] <- c("time", "status")
+	surv_data$status = as.numeric(surv_data$status)
+	numh = sum(surv_data$group == "High")
+	numl = sum(surv_data$group == "Low")
+	if (dim(surv_data)[1] != numh + numl) {stop("More than two groups!!!")}
+#	print(head(surv_data))
 	fit <- survfit(Surv(time, status) ~ group, data=surv_data)
 	fit_df <- data.frame(time = fit$time, n.risk = fit$n.risk,
 			     n.event = fit$n.event, n.censor = fit$n.censor,
 			     surv = fit$surv, upper = fit$upper, lower = fit$lower)
+	print(head(fit_df))
 	if (cox != "") {
-		res.cox <- coxph(Surv(time, status) ~ group, data=surv_data)
-		print(summary(res.cox))
-		cox_rds <- paste(cox, lab, "_survana_cox_res.rds", sep="")
+		print(head(surv_data))
+		if (multicox) {
+			cat("\tMulti-variant Cox analysis with ", coxfac, "\n")
+			res.cox <- coxph(Surv(time, status) ~ group+age+grade+tsize+node_stat, data=surv_data)
+		} else {
+			cat("\tSingle-variant Cox analysis with ", gptype, "\n")
+			res.cox <- coxph(Surv(time, status) ~ group, data=surv_data)
+		}
+	#	print(summary(res.cox))
+		prescox = summary(res.cox) # Print results of COX
+		cox_rds <- paste(cox, lab, gptype, "_survana_cox_res.rds", sep="")
+		cat("\t\tP-value from logRank test: ", (prescox$sctest["pvalue"]), "\n")
 		saveRDS(res.cox, file=cox_rds)}
 	if (csv != "") {
-		surv_rescsv <- paste(csv, lab, "_survana_res.csv", sep="")
+		surv_rescsv <- paste(csv, lab, gptype, "_survana_res.csv", sep="")
 		write.csv(fit_df, file=surv_rescsv)}
 	if (plot != "") {
-		surv_plot <- paste(plot, lab, "_survana_curves.tiff", sep="")
+		surv_plot <- paste(plot, lab, gptype, "_survana_curves.tiff", sep="")
 		survcurv <- ggsurvplot(fit, data = surv_data,
 				       xlim = c(0,10000), ylim = c(0.00, 1.00),
 				       pval = TRUE, pval.size = 6, pval.coord = c(0, 0.2),
 				       conf.int = TRUE, conf.int.alpha = 0.2,
-				       xlab = "Time (days)", ylab = lab, legend.title = "Tex signature score",
+				       xlab = "Time (days)", ylab = lab, legend.title = gptype,
 				       legend.labs = c("Low", "High"),
 #                                      surv.median.line = "hv",
 				       ggtheme = theme_classic(),
@@ -47,8 +68,9 @@ survana <- function(data, type, plot = "", csv = "", cox = "") {
 				       font.x = c(14, "bold"), font.y = c(18, "bold"), 
 				       font.tickslab = c(16, "plain"), font.legend = c(18, "bold"),
 				       risk.table = FALSE, ncensor.plot = FALSE)
-		note_on_plot <- expression(paste("n" ["High"], " = 130\t", "n" ["Low"], " = 130\t"))
+		note_on_plot <- paste("nHigh = ", numh, "\t", "nLow = ", numl, "\t")
 		survcurv$plot <- survcurv$plot + annotate("text", x=2000, y=0.1, label=note_on_plot, size = 6)
+		ggsave(surv_plot, plot = survcurv$plot, dpi = 120, width = 9, height = 6, units = 'in')
 	}
 }
 
@@ -81,7 +103,9 @@ sign_file = "loi_trm_signature.txt" # Signature file
 
 pamst = "Basal"
 gp_app = "oneqcut"
-qcut = 0.25
+# gp_app = "symqcut"
+
+qcut = 0.25 # This is TOP quantile for oneqcut approach
 
 
 cat("Loading METABRIC expression data...\n")
@@ -205,7 +229,7 @@ sub_scres = sc_res[sc_res$pid %in% sub_clin$pid,]
 
 ## Histogram for sig.score
 cat("Generate histogram plot of signature score\n")
-title = paste(db_name, sg_name, pamst, "IDC", sep = "  ")
+title = paste(db_name, sg_name, pamst, sep = "  ")
 sc_hist = ggplot(sub_scres, aes(x=sig_score)) + 
 	geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.036) +
 	labs(title=title, x="sig.score", y = "Count") + 
@@ -217,28 +241,40 @@ right_zero_count = sum(sc_hist_data[sc_hist_data$x>=zero_x[1],"count"])
 print(right_zero_count)
 sc_hist = sc_hist + geom_vline(xintercept = zero_x[1], size = 1, colour = "grey",linetype = "dashed")
 if (gp_app == "oneqcut") {
+	cat("Group the patient by one quantile cutoff: ", qcut,"\n")
 	qcov = quantile(sub_scres$sig_score, c(1-qcut)) # quantile cutoff value
 	# Add line for cutoff value
 	sc_hist = sc_hist + 
 		geom_vline(xintercept = qcov[[1]], size = 1, colour = "purple",linetype = "dotdash")
 	sc_hist = sc_hist + annotate("text", label = paste("Single cutoff value:\n", format(qcov[[1]],digit = 3), "(", 1-qcut, ")"),
 				     hjust = 0, x = qcov[[1]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
+	hist_tif = paste(sign_dir, db_name, sg_name, pamst, "single_quantile_cutoff.tiff", sep = "_")
 
 }
+if (gp_app == "symqcut") {
+	cat("Group the patient by one quantile cutoff with symmetric manner: ", qcut,"\n")
+
+	qcov = quantile(sub_scres$sig_score, c(qcut, 1-qcut)) # quantile cutoff value
+
+	# Add line for cutoff value
+	sc_hist = sc_hist + 
+		geom_vline(xintercept = qcov[[1]], size = 1, colour = "purple",linetype = "dotdash")
+	sc_hist = sc_hist + annotate("text", label = paste("Left cutoff value:\n", format(qcov[[1]],digit = 3), "(", qcut, ")"),
+				     hjust = 0, x = qcov[[1]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
+	sc_hist = sc_hist + 
+		geom_vline(xintercept = qcov[[2]], size = 1, colour = "purple",linetype = "dotdash")
+	sc_hist = sc_hist + annotate("text", label = paste("Right cutoff value:\n", format(qcov[[2]],digit = 3), "(", 1-qcut, ")"),
+				     hjust = 0, x = qcov[[2]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
+	hist_tif = paste(sign_dir, db_name, sg_name, pamst, "symmetric_quantile_cutoff.tiff", sep = "_")
+}
+
 sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_zero_count[1], 
 						   "\n Percentile:", format(right_zero_count[1]/dim(sub_scres)[1]*100, digit = 4)), 
 		 x = zero_x[1], y = max(sc_hist_data$count), size = 4.5, colour = "black")
-hist_tif = paste(sign_dir, db_name, sg_name, pamst, "IDC.tiff", sep = "_")
+# hist_tif = paste(sign_dir, db_name, sg_name, pamst, ".tiff", sep = "_")
 ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in")
 
-# Assign groups
-if (length(qcov) == 1) {
-	sub_scres$group = "Medium"
-	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"
-	sub_scres[sub_scres$sig_score > qcov[[1]],"group"] = "High"
-}
-
-# Assign survival data
+## Assign survival data
 cat("Extract survival information from clinical data to subtype sig.score data frame\n")
 sub_scres$ost = 0
 sub_scres$ose = 0
@@ -251,8 +287,31 @@ sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathB
 sub_scres[sub_clin$pid,"rfst"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"TOR"]
 sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
 
+## Add all the other factors
+sub_scres[sub_clin$pid,"age"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"])
+sub_scres[sub_clin$pid,"grade"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"])
+sub_scres[sub_clin$pid,"tsize"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"])
+sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"])
+
+
+## Assign groups
+if (length(qcov) == 1) {
+	sub_scres$group = "Medium"
+	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"
+	sub_scres[sub_scres$sig_score > qcov[[1]],"group"] = "High"
+}
+if (length(qcov) == 2) {
+	sub_scres$group = "Medium"
+	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"
+	sub_scres[sub_scres$sig_score >= qcov[[2]],"group"] = "High"
+	sub_scres = sub_scres[sub_scres$group != "Medium",]
+}
+if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 print(head(sub_scres))
-survana(data = sub_scres, type = "os")
+
+
+survana(data = sub_scres, type = "os", plot = sign_dir, gptype = "TRM sig.score", cox = sign_dir)
+survana(data = sub_scres, type = "rfs", plot = sign_dir, gptype = "TRM sig.score", cox = sign_dir)
 
 q(save = "no")
 
