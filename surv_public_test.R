@@ -38,7 +38,6 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 			     surv = fit$surv, upper = fit$upper, lower = fit$lower)
 	print(head(fit_df))
 	if (cox != "") {
-		print(head(surv_data))
 		if (multicox) {
 			cat("\tMulti-variant Cox analysis with ", coxfac, "\n")
 			res.cox <- coxph(Surv(time, status) ~ group+age+grade+tsize+node_stat, data=surv_data)
@@ -46,8 +45,11 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 			cat("\tSingle-variant Cox analysis with ", gptype, "\n")
 			res.cox <- coxph(Surv(time, status) ~ group, data=surv_data)
 		}
-	#	print(summary(res.cox))
 		prescox = summary(res.cox) # Print results of COX
+		sum_txt = paste(cox, lab, gptype, "_summary_cox_results.txt", sep = "")
+		sink(sum_txt)
+		print(summary(res.cox))
+		sink()
 		cox_rds <- paste(cox, lab, gptype, "_survana_cox_res.rds", sep="")
 		cat("\t\tP-value from logRank test: ", (prescox$sctest["pvalue"]), "\n")
 		saveRDS(res.cox, file=cox_rds)}
@@ -100,12 +102,22 @@ clin_rds = "merge_clin_info_v3.RDS" # clinical information with merged disease-f
 annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
 # sign_file = "trm_tex_brtissue_only_all_markers.xlsx" # Signature file
 sign_file = "loi_trm_signature.txt" # Signature file
+# 
 
-pamst = "Basal"
+pamst = "LumB"
 gp_app = "oneqcut"
 # gp_app = "symqcut"
 
 qcut = 0.25 # This is TOP quantile for oneqcut approach
+
+# Work for experiment records
+res_folder = "top25bot75_loi_trm_LumB_all_metabric" # NOTE: Please change this folder name to identify your experiments
+res_dir = paste(sign_dir, res_folder, "/", sep ="")
+dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
+# COPY the used script to the result folder for recording what experiment was run
+script_dir = "/home/weihua/git_repo/surv_analysis/"
+script_name = "surv_public_test.R"
+file.copy(paste(script_dir, script_name, sep = ""), res_dir)
 
 
 cat("Loading METABRIC expression data...\n")
@@ -212,14 +224,19 @@ sssign$coefficient = sign[sssign$EntrezGene.ID,"logfc"]
 # print(head(sssign))
 
 ssin = list("data" = ssdata, "annot" = ssannot, "x" = sssign)
-# saveRDS(ssin, file = paste(sign_dir, "sig_score_inputs.RDS", sep = ""))
-
 ## RUN sig.score
 cat("Run sig.score in all patient samples\n")
 sig_score <- sig.score(x=sssign, data=ssdata, annot=ssannot, do.mapping=TRUE, signed=TRUE, verbose=TRUE)
 # print(head(sig_score$score))
+if (FALSE) {
+	st = Sys.time()
+	cat("Saving sig.score input and output to ", ssin, "\n")
+	saveRDS(ssin, file = paste(res_dir, "sig_score_inputs.RDS", sep = ""))
+	saveRDS(sig_score, file = paste(res_dir, "sig_score_outputs.RDS", sep = ""))
+	print(Sys.time()-st)
+}
 
-# saveRDS(sig_score, file = paste(sign_dir, "sig_score_outputs.RDS", sep = ""))
+
 cat("Generate subtype signature score and survival data\n")
 sc_res = as.data.frame(sig_score$score)
 colnames(sc_res) = "sig_score"
@@ -248,7 +265,7 @@ if (gp_app == "oneqcut") {
 		geom_vline(xintercept = qcov[[1]], size = 1, colour = "purple",linetype = "dotdash")
 	sc_hist = sc_hist + annotate("text", label = paste("Single cutoff value:\n", format(qcov[[1]],digit = 3), "(", 1-qcut, ")"),
 				     hjust = 0, x = qcov[[1]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
-	hist_tif = paste(sign_dir, db_name, sg_name, pamst, "single_quantile_cutoff.tiff", sep = "_")
+	hist_tif = paste(res_dir, db_name, sg_name, pamst, "single_quantile_cutoff.tiff", sep = "_")
 
 }
 if (gp_app == "symqcut") {
@@ -265,7 +282,7 @@ if (gp_app == "symqcut") {
 		geom_vline(xintercept = qcov[[2]], size = 1, colour = "purple",linetype = "dotdash")
 	sc_hist = sc_hist + annotate("text", label = paste("Right cutoff value:\n", format(qcov[[2]],digit = 3), "(", 1-qcut, ")"),
 				     hjust = 0, x = qcov[[2]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
-	hist_tif = paste(sign_dir, db_name, sg_name, pamst, "symmetric_quantile_cutoff.tiff", sep = "_")
+	hist_tif = paste(res_dir, db_name, sg_name, pamst, "symmetric_quantile_cutoff.tiff", sep = "_")
 }
 
 sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_zero_count[1], 
@@ -299,19 +316,23 @@ if (length(qcov) == 1) {
 	sub_scres$group = "Medium"
 	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"
 	sub_scres[sub_scres$sig_score > qcov[[1]],"group"] = "High"
+	surv_csv = paste(res_dir, "single_qcut_survival_analysis_inputs.csv")
+	write.csv(sub_scres, file = surv_csv)
 }
 if (length(qcov) == 2) {
 	sub_scres$group = "Medium"
 	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"
 	sub_scres[sub_scres$sig_score >= qcov[[2]],"group"] = "High"
+	surv_csv = paste(res_dir, "symmetric_qcut_survival_analysis_inputs.csv")
+	write.csv(sub_scres, file = surv_csv)
 	sub_scres = sub_scres[sub_scres$group != "Medium",]
 }
 if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 print(head(sub_scres))
 
 
-survana(data = sub_scres, type = "os", plot = sign_dir, gptype = "TRM sig.score", cox = sign_dir)
-survana(data = sub_scres, type = "rfs", plot = sign_dir, gptype = "TRM sig.score", cox = sign_dir)
+survana(data = sub_scres, type = "os", plot = res_dir, gptype = "TRM sig.score", cox = res_dir)
+survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = "TRM sig.score", cox = res_dir)
 
 q(save = "no")
 
