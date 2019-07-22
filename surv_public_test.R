@@ -38,6 +38,7 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 			     surv = fit$surv, upper = fit$upper, lower = fit$lower)
 	print(head(fit_df))
 	if (cox != "") {
+		if (sum(surv_data$status == 1)>0) {
 		if (multicox) {
 			cat("\tMulti-variant Cox analysis with ", coxfac, "\n")
 			if (gdoi == 0) {
@@ -54,7 +55,10 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 		sink()
 		cox_rds <- paste(cox, lab, gptype, "_survana_cox_res.rds", sep="")
 		cat("\t\tP-value from logRank test: ", (prescox$sctest["pvalue"]), "\n")
-		saveRDS(res.cox, file=cox_rds)}
+		saveRDS(res.cox, file=cox_rds)
+		} else {cat("WARNING: NO event happened in this group!\n")}
+	
+	}
 	if (csv != "") {
 		surv_rescsv <- paste(csv, lab, gptype, "_survana_res.csv", sep="")
 		write.csv(fit_df, file=surv_rescsv)}
@@ -93,8 +97,8 @@ suppressMessages(library(survminer))
 # variable represent for
 
 work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
-db_name = "metabric"
-sg_name = "loi_trm" # Loi's TRM sig
+db_name = "tcga_brca"
+# sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 
 
@@ -102,15 +106,23 @@ sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
 sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with signatures and corresponding results
 
+if (db_name == "metabric") {
 expr_file = "metabric_expr_ilid.RDS" # Expression file
 clin_rds = "merge_clin_info_v3.RDS" # clinical information with merged disease-free survival
 annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
+}
+if (db_name == "tcga_brca") {
+expr_file = "tcga_brca_log2trans_fpkm_uq_v2.RDS" # Expression file
+clin_rds = "07212019_tcga_clinical_info.xlsx" # clinical information with merged disease-free survival
+annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
+}
+
 # sign_file = "trm_tex_brtissue_only_all_markers.xlsx" # Signature file
 # sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
 sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
 
-cantype = "IDC" # cancer type: IDC/DCIS
+histype = "IDC" # histology type: IDC/DCIS
 pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = c(1) # Grade of interest: 1/2/3
 hrtype = c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
@@ -119,7 +131,7 @@ gp_app = "symqcut" # oneqcut: one quantile cutoff, symqcut: symmetric quantile c
 qcut = 0.25 # This is TOP quantile for oneqcut approach
 
 # Work for experiment records
-res_folder = "sym25_tex_ER+_IDC_G1_metabric" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_ER+_IDC_G1_tcga_brca" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -128,7 +140,7 @@ script_name = "surv_public_test.R"
 file.copy(paste(script_dir, script_name, sep = ""), res_dir)
 
 
-cat("Loading METABRIC expression data...\n")
+cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 expr = readRDS(paste(data_dir, expr_file, sep = ""))
@@ -154,15 +166,17 @@ if (FALSE) {
 	cat("Save the clinical information to ", rds_file, "\n")
 	q(save = "no")
 }
-clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
+# clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
+clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
+
 print(Sys.time()-st)
 
 cat("Start to filter by clinical info...\n")
 sub_clin = clin_info
 cat("\tOriginal patient number: ", dim(sub_clin)[1], "\n")
-if (cantype !=  "") {
+if (histype !=  "") {
 	# For IDC
-	sub_clin = sub_clin[sub_clin[,"oncotree_code"] %in% cantype,]
+	sub_clin = sub_clin[sub_clin[,"oncotree_code"] %in% histype,]
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 }
@@ -222,9 +236,9 @@ if (pamst != "") {
 if (dim(sub_clin)[1] <= 3) {stop("TOO SMALL SAMPLE SIZE!!!")}
 
 
-cat("Loading METABRIC annotation data...\n")
+cat("Loading genome annotation data...\n")
 # library(readxl)
-# annot.meta<-read_excel("HumanHT_12_v30_R3_cleaned.xlsx", sheet = 1)
+annot.meta<-read_excel(paste(data_dir, annot_file, sep = ""))
 st = Sys.time()
 annot = as.data.frame(read_excel(paste(data_dir, annot_file, sep = "")))
 # annot = read.table(paste(data_dir, annot_file, sep = ""), header = TRUE)
@@ -255,7 +269,7 @@ ssannot = annot # sig.score annotation
 rownames(ssannot) = ssannot$Probe_Id
 ssannot$Probe_Id = NULL
 ssannot[,"RealEntrezGene.ID"] = ssannot[,"EntrezGene.ID"]
-ssannot[,"EntrezGene.ID"] = ssannot[,"ILMN_Gene"]
+ssannot[,"EntrezGene.ID"] = ssannot[,"ILMN_Gene"] # Trick the code to use EntrezGene.ID for mapping
 cat("Annotation data dimension, probe: annot ", dim(ssannot), "\n")
 # print(all(ssannot$probe == rownames(ssannot))) # Check the probe is exactly equal to rownames
 # print(head(ssannot))
@@ -277,7 +291,6 @@ sssign$EntrezGene.ID = sub_annot$ILMN_Gene
 
 sssign$coefficient = sign[sssign$EntrezGene.ID,"logfc"]
 # sssign$coefficient = sign[sub_annot$ILMN_Gene,"logfc"]
-
 # print(head(sssign))
 
 ssin = list("data" = ssdata, "annot" = ssannot, "x" = sssign)
@@ -354,6 +367,11 @@ sub_scres$ost = 0
 sub_scres$ose = 0
 sub_scres$rfst = 0
 sub_scres$rfse = 0
+
+sub_clin = sub_clin[sub_clin$pid %in% sub_scres$pid,]
+# print(head(sub_clin))
+# print(dim(sub_clin))
+
 # For overall survival
 sub_scres[sub_clin$pid,"ost"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"T"]
 sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathBreast"]
@@ -367,6 +385,10 @@ sub_scres[sub_clin$pid,"grade"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scre
 sub_scres[sub_clin$pid,"tsize"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"])
 sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"])
 
+# print(head(sub_scres))
+# print(dim(sub_scres))
+# print(dim(sub_clin))
+# q(save = "no")
 
 ## Assign groups
 if (length(qcov) == 1) {
@@ -389,9 +411,10 @@ print(head(sub_scres))
 
 
 survana(data = sub_scres, type = "os", plot = res_dir, gptype = "TRM sig.score", 
-	cox = res_dir, coxfac = c("age","tsize","node_stat"), gdoi = gdoi)
+	cox = res_dir, multicox = FALSE, coxfac = c("age","tsize","node_stat"), gdoi = gdoi)
+if (db_name != "tcga_brca") {
 survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = "TRM sig.score", 
-	cox = res_dir, coxfac = c("age","tsize","node_stat"), gdoi = gdoi)
+	cox = res_dir, coxfac = c("age","tsize","node_stat"), gdoi = gdoi)}
 q(save = "no")
 
 # ET<-ET[c(1,3)]
