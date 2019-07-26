@@ -23,8 +23,8 @@ clin_info<-readRDS("merge_clin_info_manual_checked.RDS")
 print(Sys.time()-st)
 
 
-subtype_clin=sub_clin(clin = clin_info, subtype = "Basal", coloi = "Pam50Subtype")
-subtype = "Basal"
+subtype_clin=sub_clin(clin = clin_info, subtype = "LumA", coloi = "Pam50Subtype")
+subtype = "LumA"
 
 
 cat("Loading METABRIC annotation data...\n")

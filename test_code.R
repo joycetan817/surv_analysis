@@ -141,7 +141,7 @@ pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 hrtype = c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
-gp_app = "symqcut" # oneqcut: one quantile cutoff, symqcut: symmetric quantile cutoff
+gp_app = "oneqcut" # oneqcut: one quantile cutoff, symqcut: symmetric quantile cutoff
 qcut = 0.25 # This is TOP quantile for oneqcut approach
 gene = "CD8A" # if run cox regression of single gene
 
@@ -153,8 +153,6 @@ dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 #script_dir = "/home/weihua/git_repo/surv_analysis/"
 #script_name = "surv_public_test.R"
 #file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
-
-#generate single gene data analysis file
 singene_folder = "singene_surv_cox_cor" 
 singene_dir = paste(sign_dir, singene_folder, "/", sep ="")
 dir.create(file.path(sign_dir, singene_folder), showWarnings = FALSE)
@@ -164,7 +162,7 @@ dir.create(file.path(sign_dir, singene_folder), showWarnings = FALSE)
 cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
-expr = readRDS(paste(data_dir, expr_file, sep = ""))
+expr = readRDS("metabric_expr_ilid.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 
@@ -257,9 +255,9 @@ if (dim(sub_clin)[1] <= 3) {stop("TOO SMALL SAMPLE SIZE!!!")}
 
 
 cat("Loading genome annotation data...\n")
-annot.meta<-read_excel(paste(data_dir, annot_file, sep = ""))
+annot.meta<-read_excel("HumanHT_12_v30_R3_cleaned_v2.xlsx", sheet =1)
 st = Sys.time()
-annot = as.data.frame(read_excel(paste(data_dir, annot_file, sep = ""))) 
+annot = as.data.frame(annot.meta) 
 # annot = read.table(paste(data_dir, annot_file, sep = ""), header = TRUE)
 # print(head(annot))
 print(Sys.time()-st)
@@ -283,7 +281,7 @@ ssannot[,"EntrezGene.ID"] = ssannot[,"ILMN_Gene"] # Trick the code to use Entrez
 cat("Annotation data dimension, probe: annot ", dim(ssannot), "\n")
 # print(all(ssannot$probe == rownames(ssannot))) # Check the probe is exactly equal to rownames
 # print(head(ssannot))
-
+ 
 sign_gene = toupper(rownames(sign))  
 cat("Signature gene number: ", length(sign_gene),"\n")
 anno_gene = annot$ILMN_Gene
@@ -371,6 +369,7 @@ sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_z
 # hist_tif = paste(sign_dir, db_name, sg_name, pamst, ".tiff", sep = "_")
 ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in")
 
+
 ## Assign survival data
 cat("Extract survival information from clinical data to subtype sig.score data frame\n")
 sub_scres$ost = 0
@@ -403,12 +402,9 @@ sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_
 
 #cat("Extract single gene expression from expression data to subtype sig.score data frame\n")
 sub_scres<-singene_expr(gene = "CD8A", data = ssdata, annot = ssannot) # gene name: ITGAE/CD8A/CD3G/STAT1
-sub_scres<-singene_expr(gene = "STAT1", data = ssdata, annot = ssannot) 
-sub_scres<-singene_expr(gene = "ITGAE", data = ssdata, annot = ssannot) 
-sub_scres<-singene_expr(gene = "CD3G", data = ssdata, annot = ssannot) 
 
 cat("Run correlation analysis between sig.score and other genes\n")
-sub_cor<-sub_scres[, c("sig_score", "CD8A", "STAT1","ITGAE", "CD3G")] # subtype correlation between sig.score and other singel gene name: ITGAE/CD8A/CD3G/STAT1
+sub_cor<-sub_scres[, c("sig_score", "CD8A")] # subtype correlation between sig.score and other singel gene name: ITGAE/CD8A/CD3G/STAT1
 M<-cor(sub_cor) # make correlation matrix
 
 # mat: a matrix of data
@@ -448,48 +444,47 @@ if(gene !="") {cat("generate single gene cox regression data\n")
 		cat("\t\tP-value from logRank test: ", (prescox$sctest["pvalue"]), "\n") 
 		saveRDS(res.cox, file=cox_rds)
 	}
-
-
+stop()
 ## Assign groups
-if (singene_folder != "") {sub_scres$sig_score<- sub_scres$CD8A	# generate CD8 survival analysis
-	if (length(qcov) == 1) {
+if (singene_folder != "") {sub_scres$sig_score<- sub_scres$CD8A	
+if (length(qcov) == 1) {
 	sub_scres$group = "Medium"
-	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"  
+	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"  # if generate CD8 expression group, replace sig_score with CD8A?
 	sub_scres[sub_scres$sig_score > qcov[[1]],"group"] = "High"
 	surv_csv = paste(res_dir, "single_qcut_survival_analysis_inputs.csv")
 	write.csv(sub_scres, file = surv_csv)
-	}
-	if (length(qcov) == 2) {
+}
+if (length(qcov) == 2) {
 	sub_scres$group = "Medium"
 	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"
 	sub_scres[sub_scres$sig_score >= qcov[[2]],"group"] = "High"
 	surv_csv = paste(res_dir, "symmetric_qcut_survival_analysis_inputs.csv")
 	write.csv(sub_scres, file = surv_csv)
 	sub_scres = sub_scres[sub_scres$group != "Medium",]
-	}
-	if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
-	print(head(sub_scres))
+}
+if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
+print(head(sub_scres))
 } else {
 	if (length(qcov) == 1) {
 	sub_scres$group = "Medium"
-	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"  
+	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"  # if generate CD8 expression group, replace sig_score with CD8A?
 	sub_scres[sub_scres$sig_score > qcov[[1]],"group"] = "High"
 	surv_csv = paste(res_dir, "single_qcut_survival_analysis_inputs.csv")
 	write.csv(sub_scres, file = surv_csv)
-	}
-	if (length(qcov) == 2) {
+}
+if (length(qcov) == 2) {
 	sub_scres$group = "Medium"
 	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"
 	sub_scres[sub_scres$sig_score >= qcov[[2]],"group"] = "High"
 	surv_csv = paste(res_dir, "symmetric_qcut_survival_analysis_inputs.csv")
 	write.csv(sub_scres, file = surv_csv)
 	sub_scres = sub_scres[sub_scres$group != "Medium",]
-	}
-	if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
-	print(head(sub_scres))
+}
+if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
+print(head(sub_scres))
 }
 
-if (FALSE) {
+if(FALSE) {
 cat("Perform ANOVA test by BC grade in BC subtype based on sig.score\n")
 p <- ggplot(sub_scres, aes(x = grade, y = sig_score, color = grade))
 p + geom_point()+stat_compare_means(method = "anova") + theme_bw()
@@ -506,4 +501,9 @@ survana(data = sub_scres, type = "os", plot = res_dir, gptype = "TRM sig.score",
 	cox = res_dir, multicox = FALSE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)
 if (db_name != "tcga_brca") {
 survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = "TRM sig.score", 
-	cox = res_dir, coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)}
+	cox = res_dir, coxfac = c("age","tsize", "grade","node_stat"), gdoi = gdoi)}
+
+
+
+
+
