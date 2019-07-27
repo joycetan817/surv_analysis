@@ -5,11 +5,6 @@
 # 07/01/2019
 
 rm(list = ls(all.names = TRUE))
-sub_clin = function (clin, subtype, coloi) {
-	temp_mask = clin[,coloi] == subtype
-  IDC_info<-subset(clin_info, oncotree_code =="IDC")
-	clin_oi = intersect(IDC_info, clin[temp_mask,])
-}
 
 survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "", 
 		    cox = "", coxfac = c("age","grade","tsize","node_stat"), multicox = TRUE, gdoi = 0) {
@@ -83,7 +78,7 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 }
 
 
-#Extract single gene expression from expression data to subtype sig.score data frame
+# Extract single gene expression from expression data to subtype sig.score data frame
 singene_expr = function (gene, data, annot) {
 	data = rownames_to_column (data, var = "pid")
 	gene_info<-subset(annot, ILMN_Gene == gene) # ILMN_Gene is the column of gene name which is used to extract gene probe ID
@@ -109,7 +104,7 @@ suppressMessages(library(tibble))
 # variable represent for
 
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
-work_dir = "Y:/Weihua/surv_validation/"
+work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
 db_name = "metabric"
 # sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
@@ -143,22 +138,24 @@ hrtype = c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut" # oneqcut: one quantile cutoff, symqcut: symmetric quantile cutoff
 qcut = 0.25 # This is TOP quantile for oneqcut approach
-gene = "CD8A" # if run cox regression of single gene
+gp_gene = "CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+corr_gene = c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 
 # Work for experiment records
-res_folder = "sym25_tex_ER+_IDC_Test" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_CD8A_ER+_IDC_Test" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
-#script_dir = "/home/weihua/git_repo/surv_analysis/"
-#script_name = "surv_public_test.R"
-#file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
+### !!!Please change the script_dir to the folder directory where this script is located
+script_dir = "~/GitHub/surv_analysis/"
+script_name = "surv_public_msos.R"
+file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
 
+## WG: It's unnecessary to have an independent folder to store the results for single-gene
 #generate single gene data analysis file
-singene_folder = "singene_surv_cox_cor" 
-singene_dir = paste(sign_dir, singene_folder, "/", sep ="")
-dir.create(file.path(sign_dir, singene_folder), showWarnings = FALSE)
-
+# singene_folder = "singene_surv_cox_cor" 
+# singene_dir = paste(sign_dir, singene_folder, "/", sep ="")
+# dir.create(file.path(sign_dir, singene_folder), showWarnings = FALSE)
 
 
 cat("Loading expression data...\n")
@@ -371,6 +368,7 @@ sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_z
 # hist_tif = paste(sign_dir, db_name, sg_name, pamst, ".tiff", sep = "_")
 ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in")
 
+stop("Testing...")
 ## Assign survival data
 cat("Extract survival information from clinical data to subtype sig.score data frame\n")
 sub_scres$ost = 0
@@ -401,6 +399,7 @@ sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_
 # q(save = "no")
 
 
+# Add correlation gene expressions SEPERATIVELY
 #cat("Extract single gene expression from expression data to subtype sig.score data frame\n")
 sub_scres<-singene_expr(gene = "CD8A", data = ssdata, annot = ssannot) # gene name: ITGAE/CD8A/CD3G/STAT1
 sub_scres<-singene_expr(gene = "STAT1", data = ssdata, annot = ssannot) 
