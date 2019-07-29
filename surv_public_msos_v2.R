@@ -13,15 +13,15 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 
 	if(type == "os") {
 		cat("Analyzing overall survival...\n")
-		surv_data = data[,c("group","ost", "ose", coxfac)]
+		surv_data = data[,c("group" ,"gpvalue" ,"ost", "ose", coxfac)]
 		lab = "Overall survival"
 	}
 	if(type == "rfs") {
 		cat("Analyzing relapse-free survival...\n")
-		surv_data = data[,c("group","rfst","rfse", coxfac)]
+		surv_data = data[,c("group" ,"gpvalue" ,"rfst" ,"rfse" , coxfac)]
 		lab = "Relapse-free survival"
 	}
-	colnames(surv_data)[2:3] <- c("time", "status")
+	colnames(surv_data)[3:4] <- c("time", "status")
 	surv_data$status = as.numeric(surv_data$status)
 	numh = sum(surv_data$group == "High")
 	numl = sum(surv_data$group == "Low")
@@ -37,11 +37,11 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 		if (multicox) {
 			cat("\tMulti-variant Cox analysis with ", coxfac, "\n")
 			if (gdoi == 0) {
-				res.cox <- coxph(Surv(time, status) ~ group+age+grade+tsize+node_stat, data=surv_data)
-			} else {res.cox <- coxph(Surv(time, status) ~ group+age+tsize+node_stat, data=surv_data)} 
+				res.cox <- coxph(Surv(time, status) ~ gpvalue+age+grade+tsize+node_stat, data=surv_data)
+			} else {res.cox <- coxph(Surv(time, status) ~ gpvalue+age+tsize+node_stat, data=surv_data)} 
 		} else {
 			cat("\tSingle-variant Cox analysis with ", gptype, "\n")
-			res.cox <- coxph(Surv(time, status) ~ group, data=surv_data)
+			res.cox <- coxph(Surv(time, status) ~ gpvalue, data=surv_data)
 		}
 		prescox = summary(res.cox) # Print results of COX
 		sum_txt = paste(cox, lab, gptype, "_summary_cox_results.txt", sep = "")
@@ -81,17 +81,12 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 # Extract single gene expression from expression data to subtype sig.score data frame
 singene_expr = function (gene, expr, annot, subdf, caltype = "mean") {
 	# caltype: calculation type for multiple probes, mean, median, max, min
-#	expr = rownames_to_column (expr, var = "pid")
-#	print(expr[1:9,1:6])
 	gene_info = subset(annot, ILMN_Gene == gene) # ILMN_Gene is the column of gene name which is used to extract gene probe ID
 	if (dim(gene_info)[1] == 0) {stop("No MATCHED gene found!!!")}
 #	print(gene_info)
 	if (sum(gene_info$probe %in% rownames(expr)) == 0) {stop("NO MATCHED probe found!!!")}
 	gene_probe = expr[gene_info$probe,]
-#	print(dim(gene_probe))
-#	print(gene_probe[,1:6])
-#	gene_probe<-select(expr, pid, gene_info$probe) # extract gene expression data in patient sample
-# 	gene_probe$gene<-rowMeans(gene_probe[2:length(gene_probe)]) # generate mean value of gene expression when there is more than one probe
+
 	if (caltype == "mean") {
 		sub_expr = as.data.frame(apply(gene_probe, 2, FUN = mean))
 		colnames(sub_expr) = gene 
@@ -108,8 +103,6 @@ singene_expr = function (gene, expr, annot, subdf, caltype = "mean") {
 		sub_expr = as.data.frame(apply(gene_probe, 2, FUN = min))
 		colnames(sub_expr) = gene 
 	}
-#	sub_scres$gene<-gene_probe$gene[match(sub_scres$pid, gene_probe$pid)] # extract gene expression to subtype sig.score data frame
-#	colnames(sub_scres)[length(sub_scres)] <- gene # assign the column names with gene name
 
 	sub_expr$pid = rownames(sub_expr)
 	sub_res = merge(subdf, sub_expr, by = "pid")
@@ -137,9 +130,10 @@ suppressMessages(library(Hmisc))
 # For each variable, please at least leave a simple comments describing what this 
 # variable represent for
 
+
+#################################################################################
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
-# work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
-work_dir = "~/temp_work_athome/"
+work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
 db_name = "metabric"
 # sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
@@ -161,7 +155,6 @@ clin_rds = "07212019_tcga_clinical_info.RDS" # clinical information with merged 
 annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 }
 
-# sign_file = "trm_tex_brtissue_only_all_markers.xlsx" # Signature file
 # sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
 sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
@@ -169,16 +162,17 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 histype = "IDC" # histology type: IDC/DCIS
 pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
-hrtype = c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
+hrtype = c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut" # oneqcut: one quantile cutoff, symqcut: symmetric quantile cutoff
 qcut = 0.25 # This is TOP quantile for oneqcut approach
-gp_gene = "CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
+gptype = "Tex sig.score"
 
 # Work for experiment records
-res_folder = "sym25_CD8A_ER+_IDC_Test" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_LoiTRM_TNBC_IDC_Test" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -187,13 +181,7 @@ script_dir = "~/GitHub/surv_analysis/"
 script_name = "surv_public_msos.R"
 file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
 
-## WG: It's unnecessary to have an independent folder to store the results for single-gene
-#generate single gene data analysis file
-# singene_folder = "singene_surv_cox_cor" 
-# singene_dir = paste(sign_dir, singene_folder, "/", sep ="")
-# dir.create(file.path(sign_dir, singene_folder), showWarnings = FALSE)
-
-
+#################################################################################
 cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
@@ -203,7 +191,6 @@ print(Sys.time()-st)
 
 cat("Loading clinical data...\n")
 st = Sys.time()
-# clin_info<-readRDS("merge_clin_info_manual_checked.RDS") ### I canNOT find this file
 # print(head(clin_info))
 ## To merge the RFS
 if (FALSE) {
@@ -245,9 +232,6 @@ if (pamst != "") {
 	sub_clin = sub_clin[sub_clin[,"Pam50Subtype"] == pamst,]
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
-## Since my filters are not too many and not complex, I can directly write one line for each filter
-# subtype_clin=sub_clin(clin = clin_info, subtype = "LumA", coloi = "Pam50Subtype")
-# subtype = "LumA"
 } else {
 	if (hrtype != "") {
 		if (length(hrtype) != 3) {stop("Not enough info for hormone receptor status!!!")}
@@ -288,9 +272,7 @@ if (pamst != "") {
 
 if (dim(sub_clin)[1] <= 3) {stop("TOO SMALL SAMPLE SIZE!!!")}
 
-
 cat("Loading genome annotation data...\n")
-# annot.meta<-read_excel(paste(data_dir, annot_file, sep = ""))
 st = Sys.time()
 annot = as.data.frame(read_excel(paste(data_dir, annot_file, sep = ""))) 
 # annot = read.table(paste(data_dir, annot_file, sep = ""), header = TRUE)
@@ -299,6 +281,8 @@ print(Sys.time()-st)
 
 cat("Load gene signature...\n")
 sign = read.table(paste(sign_dir, sign_file, sep = ""), header = TRUE, row.names = 1)
+
+#################################################################################
 ## PREP for sig.score
 # data = [r:sample, c:gene/probe]
 # annot = [r:gene/probe, c: genome annotation] 
@@ -349,7 +333,7 @@ if (sig_save) {
 	print(Sys.time()-st)
 }
 
-
+#################################################################################
 cat("Generate subtype signature score and survival data\n")
 sc_res = as.data.frame(sig_score$score)
 colnames(sc_res) = "sig_score"
@@ -368,6 +352,7 @@ if (gp_gene != "") {
 	hist_xlab = "Signature Score"
 }
 
+#################################################################################
 ## Histogram for sig.score
 cat("Generate histogram plot of signature score\n")
 title = paste(db_name, sg_name, pamst, sep = "  ")
@@ -415,6 +400,7 @@ sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_z
 # hist_tif = paste(sign_dir, db_name, sg_name, pamst, ".tiff", sep = "_")
 ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in")
 
+#################################################################################
 ## Assign survival data
 cat("Extract survival information from clinical data to subtype sig.score data frame\n")
 sub_scres$ost = 0
@@ -444,17 +430,13 @@ sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_
 # print(dim(sub_clin))
 # q(save = "no")
 
-
+#################################################################################
 # Add correlation gene expressions SEPERATIVELY
 cat("Extract gene expression from expression data to subtype sig.score data frame for correlation...\n")
 sub_corr = sub_sigscore
 for (ig in 1:length(corr_gene)) {
 	sub_corr = singene_expr(gene = corr_gene[ig], expr = expr, annot = annot, subdf = sub_corr)
 }
-# sub_scres<-singene_expr(gene = "CD8A", data = ssdata, annot = ssannot) # gene name: ITGAE/CD8A/CD3G/STAT1
-# sub_scres<-singene_expr(gene = "STAT1", data = ssdata, annot = ssannot) 
-# sub_scres<-singene_expr(gene = "ITGAE", data = ssdata, annot = ssannot) 
-# sub_scres<-singene_expr(gene = "CD3G", data = ssdata, annot = ssannot) 
 
 cat("Run correlation analysis between sig.score and other genes\n")
 sub_corr$pid = NULL
@@ -467,74 +449,28 @@ corrplot(subcorres$r, type="upper",
          p.mat = subcorres$P, sig.level = 0.0001) ## Specialized the insignificant value according to the significant level
 dev.off()
 
-
-if(gene !="") {cat("generate single gene cox regression data\n")
-	res.cox <- coxph(Surv(rfst, rfse) ~ CD8A+age+grade+tsize+node_stat, data = sub_scres) # change the gene name to generate single gene cox
-	prescox = summary(res.cox) # Print results of COX
-		sum_txt = paste(singene_dir, "/", gene, "_summary_cox_results.txt", sep = "")
-		sink(sum_txt)
-		print(summary(res.cox))
-		sink()
-		cox_rds <- paste(singene_dir, "/", gene, "_survana_cox_res.rds", sep="")
-		cat("\t\tP-value from logRank test: ", (prescox$sctest["pvalue"]), "\n") 
-		saveRDS(res.cox, file=cox_rds)
-	}
-
-
+#################################################################################
 ## Assign groups
-if (singene_folder != "") {sub_scres$sig_score<- sub_scres$CD8A	# generate CD8 survival analysis
-	if (length(qcov) == 1) {
+if (length(qcov) == 1) {
 	sub_scres$group = "Medium"
-	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"  
-	sub_scres[sub_scres$sig_score > qcov[[1]],"group"] = "High"
+	sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
+	sub_scres[sub_scres$gpvalue > qcov[[1]],"group"] = "High"
 	surv_csv = paste(res_dir, "single_qcut_survival_analysis_inputs.csv")
 	write.csv(sub_scres, file = surv_csv)
-	}
-	if (length(qcov) == 2) {
+}
+if (length(qcov) == 2) {
 	sub_scres$group = "Medium"
-	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"
-	sub_scres[sub_scres$sig_score >= qcov[[2]],"group"] = "High"
+	sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"
+	sub_scres[sub_scres$gpvalue >= qcov[[2]],"group"] = "High"
 	surv_csv = paste(res_dir, "symmetric_qcut_survival_analysis_inputs.csv")
 	write.csv(sub_scres, file = surv_csv)
 	sub_scres = sub_scres[sub_scres$group != "Medium",]
 	}
-	if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
-	print(head(sub_scres))
-} else {
-	if (length(qcov) == 1) {
-	sub_scres$group = "Medium"
-	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"  
-	sub_scres[sub_scres$sig_score > qcov[[1]],"group"] = "High"
-	surv_csv = paste(res_dir, "single_qcut_survival_analysis_inputs.csv")
-	write.csv(sub_scres, file = surv_csv)
-	}
-	if (length(qcov) == 2) {
-	sub_scres$group = "Medium"
-	sub_scres[sub_scres$sig_score <= qcov[[1]],"group"] = "Low"
-	sub_scres[sub_scres$sig_score >= qcov[[2]],"group"] = "High"
-	surv_csv = paste(res_dir, "symmetric_qcut_survival_analysis_inputs.csv")
-	write.csv(sub_scres, file = surv_csv)
-	sub_scres = sub_scres[sub_scres$group != "Medium",]
-	}
-	if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
-	print(head(sub_scres))
-}
+if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 
-if (FALSE) {
-cat("Perform ANOVA test by BC grade in BC subtype based on sig.score\n")
-p <- ggplot(sub_scres, aes(x = grade, y = sig_score, color = grade))
-p + geom_point()+stat_compare_means(method = "anova") + theme_bw()
-
-cat("Perform t-test between each two groups based on BC grade\n")
-my_comparisons <- list( c("1", "2"), c("1", "3"), c("2", "3") )
-ggplot(sub_scres, aes(x=grade, y=sig_score, color = grade)) + geom_point() + 
-    stat_compare_means(comparisons = my_comparisons)+ # Add pairwise comparisons p-value
-    stat_compare_means(label.y = 10) + theme_bw()
-}
-
-
-survana(data = sub_scres, type = "os", plot = res_dir, gptype = "TRM sig.score", 
-	cox = res_dir, multicox = FALSE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)
+#################################################################################
+survana(data = sub_scres, type = "os", plot = res_dir, gptype = gptype, 
+	cox = res_dir, multicox = TRUE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)
 if (db_name != "tcga_brca") {
-survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = "TRM sig.score", 
+survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = gptype, 
 	cox = res_dir, coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)}
