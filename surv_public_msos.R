@@ -79,14 +79,47 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 
 
 # Extract single gene expression from expression data to subtype sig.score data frame
-singene_expr = function (gene, data, annot) {
-	data = rownames_to_column (data, var = "pid")
-	gene_info<-subset(annot, ILMN_Gene == gene) # ILMN_Gene is the column of gene name which is used to extract gene probe ID
-	gene_probe<-select(data, pid, gene_info$probe) # extract gene expression data in patient sample
-	gene_probe$gene<-rowMeans(gene_probe[2:length(gene_probe)]) # generate mean value of gene expression when there is more than one probe
-	sub_scres$gene<-gene_probe$gene[match(sub_scres$pid, gene_probe$pid)] # extract gene expression to subtype sig.score data frame
-	colnames(sub_scres)[length(sub_scres)] <- gene # assign the column names with gene name
-	return(sub_scres)
+singene_expr = function (gene, expr, annot, subdf, caltype = "mean") {
+	# caltype: calculation type for multiple probes, mean, median, max, min
+#	expr = rownames_to_column (expr, var = "pid")
+#	print(expr[1:9,1:6])
+	gene_info = subset(annot, ILMN_Gene == gene) # ILMN_Gene is the column of gene name which is used to extract gene probe ID
+	if (dim(gene_info)[1] == 0) {stop("No MATCHED gene found!!!")}
+#	print(gene_info)
+	if (sum(gene_info$probe %in% rownames(expr)) == 0) {stop("NO MATCHED probe found!!!")}
+	gene_probe = expr[gene_info$probe,]
+#	print(dim(gene_probe))
+#	print(gene_probe[,1:6])
+#	gene_probe<-select(expr, pid, gene_info$probe) # extract gene expression data in patient sample
+# 	gene_probe$gene<-rowMeans(gene_probe[2:length(gene_probe)]) # generate mean value of gene expression when there is more than one probe
+	if (caltype == "mean") {
+		sub_expr = as.data.frame(apply(gene_probe, 2, FUN = mean))
+		colnames(sub_expr) = gene 
+	}
+	if (caltype == "median") {
+		sub_expr = as.data.frame(apply(gene_probe, 2, FUN = median))
+		colnames(sub_expr) = gene 
+	}
+	if (caltype == "max") {
+		sub_expr = as.data.frame(apply(gene_probe, 2, FUN = max))
+		colnames(sub_expr) = gene 
+	}
+	if (caltype == "min") {
+		sub_expr = as.data.frame(apply(gene_probe, 2, FUN = min))
+		colnames(sub_expr) = gene 
+	}
+#	sub_scres$gene<-gene_probe$gene[match(sub_scres$pid, gene_probe$pid)] # extract gene expression to subtype sig.score data frame
+#	colnames(sub_scres)[length(sub_scres)] <- gene # assign the column names with gene name
+
+	sub_expr$pid = rownames(sub_expr)
+	sub_res = merge(subdf, sub_expr, by = "pid")
+	rownames(sub_res) = sub_res$pid
+	if (dim(sub_res)[1] == dim(subdf)[1]) {
+		cat("\tAll the patients are matched!\n")
+	} else {
+		cat("\tWarning: missed patients!!!\n")
+	}
+	return(sub_res)
 }
 # Please load all the packages at the very begining of each script
 cat("Loading genefu library...\n")
@@ -97,6 +130,7 @@ suppressMessages(library(survival))
 suppressMessages(library(survminer))
 suppressMessages(library(corrplot))
 suppressMessages(library(tibble))
+suppressMessages(library(Hmisc))
 # Personally prefer to having a independent section for all the parameters or variables
 # which may be tuned for different inputs and tasks
 
@@ -104,7 +138,8 @@ suppressMessages(library(tibble))
 # variable represent for
 
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
-work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
+# work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
+work_dir = "~/temp_work_athome/"
 db_name = "metabric"
 # sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
@@ -139,6 +174,7 @@ sig_save = FALSE
 gp_app = "symqcut" # oneqcut: one quantile cutoff, symqcut: symmetric quantile cutoff
 qcut = 0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+# Default "": use signature score 
 corr_gene = c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 
 # Work for experiment records
@@ -254,7 +290,7 @@ if (dim(sub_clin)[1] <= 3) {stop("TOO SMALL SAMPLE SIZE!!!")}
 
 
 cat("Loading genome annotation data...\n")
-annot.meta<-read_excel(paste(data_dir, annot_file, sep = ""))
+# annot.meta<-read_excel(paste(data_dir, annot_file, sep = ""))
 st = Sys.time()
 annot = as.data.frame(read_excel(paste(data_dir, annot_file, sep = ""))) 
 # annot = read.table(paste(data_dir, annot_file, sep = ""), header = TRUE)
@@ -319,14 +355,25 @@ sc_res = as.data.frame(sig_score$score)
 colnames(sc_res) = "sig_score"
 sc_res$pid = rownames(sc_res)
 sub_scres = sc_res[sc_res$pid %in% sub_clin$pid,]
+sub_sigscore = sub_scres
 
+if (gp_gene != "") {
+	cat("Using ", gp_gene, " as the group criteria...\n")
+	sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres)
+	sub_scres = sub_expr
+	sub_scres[,"gpvalue"] = sub_scres[,gp_gene]
+	hist_xlab = gp_gene
+} else {
+	sub_scres[,"gpvalue"] = sub_scres[,"sig_score"]
+	hist_xlab = "Signature Score"
+}
 
 ## Histogram for sig.score
 cat("Generate histogram plot of signature score\n")
 title = paste(db_name, sg_name, pamst, sep = "  ")
-sc_hist = ggplot(sub_scres, aes(x=sig_score)) + 
+sc_hist = ggplot(sub_scres, aes(x=gpvalue)) + 
 	geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.036) +
-	labs(title=title, x="sig.score", y = "Count") + 
+	labs(title=title, x=hist_xlab, y = "Count") + 
 	theme_classic()
 sc_hist_bld = ggplot_build(sc_hist)
 sc_hist_data = sc_hist_bld$data[[1]]
@@ -336,7 +383,7 @@ right_zero_count = sum(sc_hist_data[sc_hist_data$x>=zero_x[1],"count"])
 sc_hist = sc_hist + geom_vline(xintercept = zero_x[1], size = 1, colour = "grey",linetype = "dashed")
 if (gp_app == "oneqcut") {
 	cat("Group the patient by one quantile cutoff: ", qcut,"\n")
-	qcov = quantile(sub_scres$sig_score, c(1-qcut)) # quantile cutoff value
+	qcov = quantile(sub_scres$gpvalue, c(1-qcut)) # quantile cutoff value
 	# Add line for cutoff value
 	sc_hist = sc_hist + 
 		geom_vline(xintercept = qcov[[1]], size = 1, colour = "purple",linetype = "dotdash")
@@ -348,7 +395,7 @@ if (gp_app == "oneqcut") {
 if (gp_app == "symqcut") {
 	cat("Group the patient by one quantile cutoff with symmetric manner: ", qcut,"\n")
 
-	qcov = quantile(sub_scres$sig_score, c(qcut, 1-qcut)) # quantile cutoff value
+	qcov = quantile(sub_scres$gpvalue, c(qcut, 1-qcut)) # quantile cutoff value
 
 	# Add line for cutoff value
 	sc_hist = sc_hist + 
@@ -368,7 +415,6 @@ sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_z
 # hist_tif = paste(sign_dir, db_name, sg_name, pamst, ".tiff", sep = "_")
 ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in")
 
-stop("Testing...")
 ## Assign survival data
 cat("Extract survival information from clinical data to subtype sig.score data frame\n")
 sub_scres$ost = 0
@@ -400,39 +446,25 @@ sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_
 
 
 # Add correlation gene expressions SEPERATIVELY
-#cat("Extract single gene expression from expression data to subtype sig.score data frame\n")
-sub_scres<-singene_expr(gene = "CD8A", data = ssdata, annot = ssannot) # gene name: ITGAE/CD8A/CD3G/STAT1
-sub_scres<-singene_expr(gene = "STAT1", data = ssdata, annot = ssannot) 
-sub_scres<-singene_expr(gene = "ITGAE", data = ssdata, annot = ssannot) 
-sub_scres<-singene_expr(gene = "CD3G", data = ssdata, annot = ssannot) 
+cat("Extract gene expression from expression data to subtype sig.score data frame for correlation...\n")
+sub_corr = sub_sigscore
+for (ig in 1:length(corr_gene)) {
+	sub_corr = singene_expr(gene = corr_gene[ig], expr = expr, annot = annot, subdf = sub_corr)
+}
+# sub_scres<-singene_expr(gene = "CD8A", data = ssdata, annot = ssannot) # gene name: ITGAE/CD8A/CD3G/STAT1
+# sub_scres<-singene_expr(gene = "STAT1", data = ssdata, annot = ssannot) 
+# sub_scres<-singene_expr(gene = "ITGAE", data = ssdata, annot = ssannot) 
+# sub_scres<-singene_expr(gene = "CD3G", data = ssdata, annot = ssannot) 
 
 cat("Run correlation analysis between sig.score and other genes\n")
-sub_cor<-sub_scres[, c("sig_score", "CD8A", "STAT1","ITGAE", "CD3G")] # subtype correlation between sig.score and other singel gene name: ITGAE/CD8A/CD3G/STAT1
-M<-cor(sub_cor) # make correlation matrix
-
-# mat: a matrix of data
-# ... : further arguments to pass to the native R cor.test function
-cat("Compute the p-value of correlations\n")
-cor.mtest <- function(mat, ...) {
-     mat <- as.matrix(mat)
-     n <- ncol(mat)
-     p.mat<- matrix(NA, n, n)
-     diag(p.mat) <- 0
-     for (i in 1:(n - 1)) {
-         for (j in (i + 1):n) {
-             tmp <- cor.test(mat[, i], mat[, j], ...)
-             p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
-         }
-     }
-     colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
-     p.mat
-} # generate P value
-p.mat <- cor.mtest(sub_cor)
-head(p.mat)
-cor_plot = paste(singene_dir, "/", "tex_singene_ER_cor.jpeg", sep = "") # change the folder name according to subtype and sig.score
-jpeg(cor_plot) # save corrplot jpeg file name
-corrplot(M, type="upper",
-         p.mat = p.mat, sig.level = 0.01) ## Specialized the insignificant value according to the significant level
+sub_corr$pid = NULL
+sub_corr = as.matrix(sub_corr)
+subcorres = rcorr(sub_corr)
+# cor_plot = paste(, "/", "tex_singene_ER_cor.jpeg", sep = "") # change the folder name according to subtype and sig.score
+corr_tif = paste(res_dir, db_name, sg_name, pamst, "gene_correlation_v1.tiff", sep = "_")
+tiff(corr_tif, res = 180, width = 9, heigh = 6, units = "in") # save corrplot jpeg file name
+corrplot(subcorres$r, type="upper",
+         p.mat = subcorres$P, sig.level = 0.0001) ## Specialized the insignificant value according to the significant level
 dev.off()
 
 
