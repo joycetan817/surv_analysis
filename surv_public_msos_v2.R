@@ -171,6 +171,7 @@ gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression
 corr_gene = c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "Tex sig.score"
 
+#################################################################################
 # Work for experiment records
 res_folder = "sym25_LoiTRM_TNBC_IDC_Test" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
@@ -283,7 +284,7 @@ cat("Load gene signature...\n")
 sign = read.table(paste(sign_dir, sign_file, sep = ""), header = TRUE, row.names = 1)
 
 #################################################################################
-## PREP for sig.score
+## PREP for sig.score with MAPPPING
 # data = [r:sample, c:gene/probe]
 # annot = [r:gene/probe, c: genome annotation] 
 # x = [r: genes in signature, c: probe+EntrezGene.ID, coefficient]
