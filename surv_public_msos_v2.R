@@ -79,30 +79,37 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 
 
 # Extract single gene expression from expression data to subtype sig.score data frame
-singene_expr = function (gene, expr, annot, subdf, caltype = "mean") {
-	# caltype: calculation type for multiple probes, mean, median, max, min
-	gene_info = subset(annot, ILMN_Gene == gene) # ILMN_Gene is the column of gene name which is used to extract gene probe ID
-	if (dim(gene_info)[1] == 0) {stop("No MATCHED gene found!!!")}
-#	print(gene_info)
-	if (sum(gene_info$probe %in% rownames(expr)) == 0) {stop("NO MATCHED probe found!!!")}
-	gene_probe = expr[gene_info$probe,]
+singene_expr = function (gene, expr, annot, subdf, caltype = "mean", map = TRUE) {
+	if (map) {
+		# caltype: calculation type for multiple probes, mean, median, max, min
+		gene_info = subset(annot, ILMN_Gene == gene) # ILMN_Gene is the column of gene name which is used to extract gene probe ID
+		if (dim(gene_info)[1] == 0) {stop("No MATCHED gene found!!!")}
+#		print(gene_info)
+		if (sum(gene_info$probe %in% rownames(expr)) == 0) {stop("NO MATCHED probe found!!!")}
+		gene_probe = expr[gene_info$probe,]
 
-	if (caltype == "mean") {
-		sub_expr = as.data.frame(apply(gene_probe, 2, FUN = mean))
-		colnames(sub_expr) = gene 
-	}
-	if (caltype == "median") {
-		sub_expr = as.data.frame(apply(gene_probe, 2, FUN = median))
-		colnames(sub_expr) = gene 
-	}
-	if (caltype == "max") {
-		sub_expr = as.data.frame(apply(gene_probe, 2, FUN = max))
-		colnames(sub_expr) = gene 
-	}
-	if (caltype == "min") {
-		sub_expr = as.data.frame(apply(gene_probe, 2, FUN = min))
-		colnames(sub_expr) = gene 
-	}
+		if (caltype == "mean") {
+			sub_expr = as.data.frame(apply(gene_probe, 2, FUN = mean))
+			colnames(sub_expr) = gene 
+		}
+		if (caltype == "median") {
+			sub_expr = as.data.frame(apply(gene_probe, 2, FUN = median))
+			colnames(sub_expr) = gene 
+		}
+		if (caltype == "max") {
+			sub_expr = as.data.frame(apply(gene_probe, 2, FUN = max))
+			colnames(sub_expr) = gene 
+		}
+		if (caltype == "min") {
+			sub_expr = as.data.frame(apply(gene_probe, 2, FUN = min))
+			colnames(sub_expr) = gene 
+		}
+	} else {
+			print(expr[1:9,1:6])
+			if (sum(rownames(expr) == gene) == 1) {
+				sub_expr = as.data.frame(expr[gene, 3:dim(expr)[2]])
+			}
+		}
 
 	sub_expr$pid = rownames(sub_expr)
 	sub_res = merge(subdf, sub_expr, by = "pid")
@@ -112,6 +119,7 @@ singene_expr = function (gene, expr, annot, subdf, caltype = "mean") {
 	} else {
 		cat("\tWarning: missed patients!!!\n")
 	}
+	print(head(sub_res))
 	return(sub_res)
 }
 # Please load all the packages at the very begining of each script
@@ -130,14 +138,14 @@ suppressMessages(library(Hmisc))
 # For each variable, please at least leave a simple comments describing what this 
 # variable represent for
 
-
 #################################################################################
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
 work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
 db_name = "metabric"
-# sg_name = "loi_trm" # Loi's TRM sig
-sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
-
+sg_name = "loi_trm" # Loi's TRM sig
+# sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
+expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = TRUE # NOTE: ilid requires this as TRUE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -145,9 +153,11 @@ sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with
 
 
 if (db_name == "metabric") {
-expr_file = "metabric_expr_ilid.RDS" # Expression file
-clin_rds = "merge_clin_info_v3.RDS" # clinical information with merged disease-free survival
-annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
+	if (expr_type == "ilid") {expr_file = "metabric_expr_ilid.RDS"}
+	if (expr_type == "median") {expr_file = "data_expression_median.RDS"}
+	if (expr_type == "medianz") {expr_file = "data_mRNA_median_Zscores.RDS"}
+	clin_rds = "merge_clin_info_v3.RDS" # clinical information with merged disease-free survival
+	annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
 }
 if (db_name == "tcga_brca") {
 expr_file = "tcga_brca_log2trans_fpkm_uq_v2.RDS" # Expression file
@@ -155,31 +165,32 @@ clin_rds = "07212019_tcga_clinical_info.RDS" # clinical information with merged 
 annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 }
 
-# sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
-sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
+sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
+# sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
 
-histype = "IDC" # histology type: IDC/DCIS
-pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
+histype = "" # histology type: IDC/DCIS
+pamst = "Basal" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
-hrtype = c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
+# hrtype = c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
-gp_app = "symqcut" # oneqcut: one quantile cutoff, symqcut: symmetric quantile cutoff
+gp_app = "oneqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
-gptype = "Tex sig.score"
+gptype = "TRM sig.score"
+
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_LoiTRM_TNBC_IDC_Test" # NOTE: Please change this folder name to identify your experiments
+res_folder = "top24bot75_LoiTRM_basal_cbpt_test" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
 ### !!!Please change the script_dir to the folder directory where this script is located
 script_dir = "~/GitHub/surv_analysis/"
-script_name = "surv_public_msos.R"
+script_name = "surv_public_msos_v2.R"
 file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
 
 #################################################################################
@@ -284,48 +295,84 @@ cat("Load gene signature...\n")
 sign = read.table(paste(sign_dir, sign_file, sep = ""), header = TRUE, row.names = 1)
 
 #################################################################################
-## PREP for sig.score with MAPPPING
-# data = [r:sample, c:gene/probe]
-# annot = [r:gene/probe, c: genome annotation] 
-# x = [r: genes in signature, c: probe+EntrezGene.ID, coefficient]
-ssdata = t(expr) # sig.score data
-ssdata = as.data.frame(ssdata)
-cat("Expression data dimension, sample: probe ", dim(ssdata), "\n")
-# print(ssdata[1:9,1:6])
+if (selfmap) {
+	## PREP for sig.score with MAPPPING
+	# data = [r:sample, c:gene/probe]
+	# annot = [r:gene/probe, c: genome annotation] 
+	# x = [r: genes in signature, c: probe+EntrezGene.ID, coefficient]
+	ssdata = t(expr) # sig.score data
+	ssdata = as.data.frame(ssdata)
+	cat("Expression data dimension, sample: probe ", dim(ssdata), "\n")
+	# print(ssdata[1:9,1:6])
 
-ssannot = annot # sig.score annotation
-rownames(ssannot) = ssannot$Probe_Id
-ssannot$Probe_Id = NULL
-ssannot[,"RealEntrezGene.ID"] = ssannot[,"EntrezGene.ID"]
-ssannot[,"EntrezGene.ID"] = ssannot[,"ILMN_Gene"] # Trick the code to use EntrezGene.ID for mapping
-cat("Annotation data dimension, probe: annot ", dim(ssannot), "\n")
-# print(all(ssannot$probe == rownames(ssannot))) # Check the probe is exactly equal to rownames
-# print(head(ssannot))
+	ssannot = annot # sig.score annotation
+	rownames(ssannot) = ssannot$Probe_Id
+	ssannot$Probe_Id = NULL
+	ssannot[,"RealEntrezGene.ID"] = ssannot[,"EntrezGene.ID"]
+	ssannot[,"EntrezGene.ID"] = ssannot[,"ILMN_Gene"] # Trick the code to use EntrezGene.ID for mapping
+	cat("Annotation data dimension, probe: annot ", dim(ssannot), "\n")
+	# print(all(ssannot$probe == rownames(ssannot))) # Check the probe is exactly equal to rownames
+	# print(head(ssannot))
 
-sign_gene = toupper(rownames(sign))  
-cat("Signature gene number: ", length(sign_gene),"\n")
-anno_gene = annot$ILMN_Gene
-ol_gene = intersect(sign_gene, anno_gene)
-unava_gene = setdiff(sign_gene, ol_gene)
-cat("Unavailable",length(unava_gene) ," genes: ", unava_gene, "\n")
-sub_annot = ssannot[ssannot$ILMN_Gene %in% sign_gene,]
-cat("Available probe: ", dim(sub_annot)[1], "\n")
-sssign = as.data.frame(matrix(ncol = 3, nrow = dim(sub_annot)[1])) # Initialize sig.score x
-colnames(sssign) = c("probe", "EntrezGene.ID", "coefficient")
-rownames(sssign) = rownames(sub_annot)
-sssign$probe = rownames(sub_annot)
-sssign$EntrezGene.ID = sub_annot$ILMN_Gene
-# sssign$EntrezGene.ID = sub_annot$EntrezGene.ID
+	sign_gene = toupper(rownames(sign))  
+	cat("Signature gene number: ", length(sign_gene),"\n")
+	anno_gene = annot$ILMN_Gene
+	ol_gene = intersect(sign_gene, anno_gene)
+	unava_gene = setdiff(sign_gene, ol_gene)
+	cat("Unavailable",length(unava_gene) ," genes: ", unava_gene, "\n")
+	sub_annot = ssannot[ssannot$ILMN_Gene %in% sign_gene,]
+	cat("Available probe: ", dim(sub_annot)[1], "\n")
+	sssign = as.data.frame(matrix(ncol = 3, nrow = dim(sub_annot)[1])) # Initialize sig.score x
+	colnames(sssign) = c("probe", "EntrezGene.ID", "coefficient")
+	rownames(sssign) = rownames(sub_annot)
+	sssign$probe = rownames(sub_annot)
+	sssign$EntrezGene.ID = sub_annot$ILMN_Gene
+	# sssign$EntrezGene.ID = sub_annot$EntrezGene.ID
 
-sssign$coefficient = sign[sssign$EntrezGene.ID,"logfc"]
-# sssign$coefficient = sign[sub_annot$ILMN_Gene,"logfc"]
-# print(head(sssign))
+	sssign$coefficient = sign[sssign$EntrezGene.ID,"logfc"]
+	# sssign$coefficient = sign[sub_annot$ILMN_Gene,"logfc"]
+	# print(head(sssign))
 
+	## RUN sig.score
+	cat("Run sig.score in all patient samples\n")
+	sig_score <- sig.score(x=sssign, data=ssdata, annot=ssannot, do.mapping=TRUE, signed=TRUE, verbose=TRUE)
+	# print(head(sig_score$score))
+
+} else {
+	## PREP for sig.score WITHOUT MAPPPING
+	# data = [r:sample, c:gene]
+	# annot = [r:gene, c: genome annotation] 
+	# x = [r: genes in signature, c: probe+EntrezGene.ID, coefficient]
+	if (expr_type == "median") {rownames(expr) = expr[,1]}
+	ssdata = expr[, 3:dim(expr)[2]]
+	ssdata = as.data.frame(t(ssdata))
+	cat("Expression data dimension, sample: probe ", dim(ssdata), "\n")
+	print(ssdata[1:9,1:6])
+
+	ssannot = expr[,1:2]
+	cat("Annotation data dimension, probe: annot ", dim(ssannot), "\n")
+	print(head(ssannot))
+
+	sign_gene = toupper(rownames(sign))  
+	cat("Signature gene number: ", length(sign_gene),"\n")
+	anno_gene = rownames(expr)
+	ol_gene = intersect(sign_gene, anno_gene)
+	unava_gene = setdiff(sign_gene, ol_gene)
+	cat("Unavailable",length(unava_gene) ," genes: ", unava_gene, "\n")
+	sub_annot = ssannot[ssannot$Hugo_Symbol %in% sign_gene,]
+	cat("Available probe: ", dim(sub_annot)[1], "\n")
+	sssign = as.data.frame(matrix(ncol = 3, nrow = dim(sub_annot)[1])) # Initialize sig.score x
+	colnames(sssign) = c("probe", "EntrezGene.ID", "coefficient")
+	rownames(sssign) = rownames(sub_annot)
+	sssign$probe = rownames(sub_annot)
+	sssign$EntrezGene.ID = sub_annot$Entrez_Gene_Id
+
+	sssign$coefficient = sign[sssign$probe,"logfc"]
+	cat("Run sig.score in all patient samples\n")
+	sig_score = sig.score(x=sssign, data=ssdata, annot=ssannot, do.mapping=FALSE, signed=TRUE, verbose=TRUE)
+	# print(head(sssign))
+}
 ssin = list("data" = ssdata, "annot" = ssannot, "x" = sssign)
-## RUN sig.score
-cat("Run sig.score in all patient samples\n")
-sig_score <- sig.score(x=sssign, data=ssdata, annot=ssannot, do.mapping=TRUE, signed=TRUE, verbose=TRUE)
-# print(head(sig_score$score))
 if (sig_save) {
 	st = Sys.time()
 	cat("Saving sig.score input and output to ", res_dir, "\n")
@@ -333,6 +380,7 @@ if (sig_save) {
 	saveRDS(sig_score, file = paste(res_dir, "sig_score_outputs.RDS", sep = ""))
 	print(Sys.time()-st)
 }
+
 
 #################################################################################
 cat("Generate subtype signature score and survival data\n")
@@ -344,7 +392,7 @@ sub_sigscore = sub_scres
 
 if (gp_gene != "") {
 	cat("Using ", gp_gene, " as the group criteria...\n")
-	sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres)
+	sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres, map = selfmap)
 	sub_scres = sub_expr
 	sub_scres[,"gpvalue"] = sub_scres[,gp_gene]
 	hist_xlab = gp_gene
@@ -436,7 +484,7 @@ sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_
 cat("Extract gene expression from expression data to subtype sig.score data frame for correlation...\n")
 sub_corr = sub_sigscore
 for (ig in 1:length(corr_gene)) {
-	sub_corr = singene_expr(gene = corr_gene[ig], expr = expr, annot = annot, subdf = sub_corr)
+	sub_corr = singene_expr(gene = corr_gene[ig], expr = expr, annot = annot, subdf = sub_corr, map = selfmap)
 }
 
 cat("Run correlation analysis between sig.score and other genes\n")
