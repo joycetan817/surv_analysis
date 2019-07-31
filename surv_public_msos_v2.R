@@ -144,8 +144,8 @@ work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
 db_name = "metabric"
 sg_name = "loi_trm" # Loi's TRM sig
 # sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
-expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = TRUE # NOTE: ilid requires this as TRUE
+expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = FALSE # NOTE: ilid requires this as TRUE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -184,7 +184,7 @@ gptype = "TRM sig.score"
 
 #################################################################################
 # Work for experiment records
-res_folder = "top24bot75_LoiTRM_basal_cbpt_test" # NOTE: Please change this folder name to identify your experiments
+res_folder = "top25bot75_LoiTRM_basal_cbpt_test" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -406,7 +406,7 @@ if (gp_gene != "") {
 cat("Generate histogram plot of signature score\n")
 title = paste(db_name, sg_name, pamst, sep = "  ")
 sc_hist = ggplot(sub_scres, aes(x=gpvalue)) + 
-	geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.036) +
+	geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
 	labs(title=title, x=hist_xlab, y = "Count") + 
 	theme_classic()
 sc_hist_bld = ggplot_build(sc_hist)
@@ -479,6 +479,7 @@ sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_
 # print(dim(sub_clin))
 # q(save = "no")
 
+if (FALSE) {
 #################################################################################
 # Add correlation gene expressions SEPERATIVELY
 cat("Extract gene expression from expression data to subtype sig.score data frame for correlation...\n")
@@ -497,7 +498,7 @@ tiff(corr_tif, res = 180, width = 9, heigh = 6, units = "in") # save corrplot jp
 corrplot(subcorres$r, type="upper",
          p.mat = subcorres$P, sig.level = 0.0001) ## Specialized the insignificant value according to the significant level
 dev.off()
-
+}
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
