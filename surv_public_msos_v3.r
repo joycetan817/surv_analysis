@@ -107,7 +107,7 @@ singene_expr = function (gene, expr, annot, subdf, caltype = "mean", map = TRUE)
 	} else {
 			print(expr[1:9,1:6])
 			if (sum(rownames(expr) == gene) == 1) {
-				sub_expr = as.data.frame(expr[gene, 3:dim(expr)[2]])
+				sub_expr = as.data.frame(t(expr[gene, 3:dim(expr)[2]]))
 			} else {stop("No matched gene")}
 		}
 
@@ -145,8 +145,8 @@ db_name = "metabric"
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = TRUE # NOTE: ilid requires this as TRUE
+expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = FALSE # NOTE: ilid requires this as TRUE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
