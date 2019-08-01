@@ -64,7 +64,7 @@ bot_75$score="75%"
 sub_score<-rbind(top_25,bot_75)
 
 cat("Extract survival information from clinical data")
-sub_score$OS<-subtype_clin$T[match(subtype_clin$pid, sub_score$patient_id)]
+
 sub_score$os_status<-subtype_clin$DeathBreast[match(subtype_clin$pid, sub_score$patient_id)]
 subtype_clin$DFS<-ifelse(subtype_clin$TLR>subtype_clin$TDR,subtype_clin$TDR,subtype_clin$TLR) # dfs includes local relapse and distant replase
 subtype_clin$dfs_status<-ifelse(c(subtype_clin$LR==0 & subtype_clin$DR==0),0,1) 

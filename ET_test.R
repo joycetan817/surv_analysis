@@ -74,7 +74,7 @@ subtype_clin$dfs_status<-ifelse(c(subtype_clin$LR==0 & subtype_clin$DR==0),0,1)
 sub_score$DFS<-subtype_clin$DFS[match(sub_score$patient_id,subtype_clin$pid)]
 sub_score$dfs_status<-subtype_clin$dfs_status[match(sub_score$patient_id,subtype_clin$pid)]
 
-stop("JUST STOP!!!!!!!")
+
 
 cat("Select patient samples by 25/25 cutoff of exhuasted T sig.score")
 
@@ -147,7 +147,6 @@ sub_score$grade<-as.character(sub_score$grade)
 sub_score$grade<-as.numeric(sub_score$grade)
 sub_score<-na.omit(sub_score)
 
-sub_score$grade<-as.factor(sub_score$grade)
 
 cat("Perform ANOVA test by BC grade in BC subtype based on exhuasted T cell sig.score\n")
 p <- ggplot(sub_score, aes(x = grade, y = sig.score, color = grade))
