@@ -146,8 +146,8 @@ db_name = "metabric"
 sg_name = "loi_trm" # Loi's TRM sig
 #sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = FALSE # NOTE: ilid requires this as TRUE; median as FALSE
+expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = TRUE # NOTE: ilid requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -181,13 +181,13 @@ gp_app = "oneqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: s
 qcut = 0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
-corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
+corr_gene = c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "TRM sig.score"
 
 
 #################################################################################
 # Work for experiment records
-res_folder = "one25_trm_basal_TNBC_IDC_cbpt_test" # NOTE: Please change this folder name to identify your experiments
+res_folder = "one25_trm_basal_TNBC_IDC_meta" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -201,7 +201,7 @@ cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
-expr = readRDS("data_expression_median.RDS") # When test the script
+expr = readRDS("metabric_expr_ilid.RDS") # When test the script
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 
@@ -514,7 +514,7 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	         p.mat = subcorres$P, sig.level = 0.0001) ## Specialized the insignificant value according to the significant level
 	dev.off()
 
-    for (ig in 1:length(corr_gene)) { cat("Generate scatter plot of correlation between sig.score and other gene\n")
+    for (ig in 1:length(corr_gene)) { cat("Generate scatter plot of correlation between sig.score and ", corr_gene[ig], "\n")
 		scat_cor<-ggscatter(sub_corr, x = "sig_score", y = corr_gene[ig], # genes correlate with sig.score
 		   color = "black", shape = 21, size = 2, 
 		   add = "reg.line",  # Add regressin line

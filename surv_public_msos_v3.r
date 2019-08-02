@@ -144,10 +144,10 @@ suppressMessages(library(Hmisc))
 work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
 db_name = "metabric"
 #sg_name = "loi_trm" # Loi's TRM sig
-sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
-#sg_name = "mamma" # mamma sig
-expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = TRUE # NOTE: ilid requires this as TRUE
+#sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
+sg_name = "mamma" # mamma sig
+expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = FALSE # NOTE: ilid requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -168,33 +168,33 @@ annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 }
 
 #sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
-sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
-#sign_file = "mamma_signature_v1.txt" # Signature file mamma
+#sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
+sign_file = "mamma_signature_v1.txt" # Signature file mamma
 
 
 histype = "IDC" # histology type: IDC/DCIS
 pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
-hrtype = c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
+hrtype = c("-", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
-gptype = "Tex sig.score"
-#scatt_gene = "CD8A" # Genes correlate with sig.score by scatter plot
+gptype = "mamma sig.score"
+
 
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_ER+_IDC_test" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_mamma_all_cbpt" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
 ### !!!Please change the script_dir to the folder directory where this script is located
 script_dir = "~/GitHub/surv_analysis/"
-script_name = "surv_public_msos_v2.R"
+script_name = "surv_public_msos_v3.R"
 file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
 
 #################################################################################
@@ -202,7 +202,8 @@ cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
-expr = readRDS("metabric_expr_ilid.RDS") # When test the script
+#expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
+expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 
@@ -513,7 +514,7 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	         p.mat = subcorres$P, sig.level = 0.0001) ## Specialized the insignificant value according to the significant level
 	dev.off()
 
-    for (ig in 1:length(corr_gene)) { cat("Generate scatter plot of correlation between sig.score and other gene\n")
+    for (ig in 1:length(corr_gene)) { cat("Generate scatter plot of correlation between sig.score and", corr_gene[ig], "\n")
 		scat_cor<-ggscatter(sub_corr, x = "sig_score", y = corr_gene[ig], # genes correlate with sig.score
 		   color = "black", shape = 21, size = 2, 
 		   add = "reg.line",  # Add regressin line
