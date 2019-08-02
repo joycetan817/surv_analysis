@@ -121,6 +121,7 @@ singene_expr = function (gene, expr, annot, subdf, caltype = "mean", map = TRUE)
 	}
 	print(head(sub_res))
 	return(sub_res)
+
 }
 # Please load all the packages at the very begining of each script
 cat("Loading genefu library...\n")
@@ -145,8 +146,8 @@ db_name = "metabric"
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = FALSE # NOTE: ilid requires this as TRUE
+expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = TRUE # NOTE: ilid requires this as TRUE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -181,13 +182,13 @@ qcut = 0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
-gptype = "TRM sig.score"
-scatt_gene = "CD8A" # Genes correlate with sig.score by scatter plot
+gptype = "Tex sig.score"
+#scatt_gene = "CD8A" # Genes correlate with sig.score by scatter plot
 
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_ER+_IDC_Test" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_ER+_IDC_test" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -200,7 +201,8 @@ file.copy(paste(script_dir, script_name, sep = ""), res_dir)
 cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
-expr = readRDS(paste(data_dir, expr_file, sep = ""))
+#expr = readRDS(paste(data_dir, expr_file, sep = ""))
+expr = readRDS("metabric_expr_ilid.RDS") # When test the script
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 
@@ -221,7 +223,8 @@ if (FALSE) {
 	cat("Save the clinical information to ", rds_file, "\n")
 	q(save = "no")
 }
-clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
+#clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
+clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
 # clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
 # saveRDS(clin_info, file = paste(data_dir, "07212019_tcga_clinical_info.RDS", sep = ""))
 print(Sys.time()-st)
@@ -454,11 +457,15 @@ ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in")
 
 #################################################################################
 ## Assign survival data
-cat("Extract survival information from clinical data to subtype sig.score data frame\n")
+cat("Extract survival and treatment information from clinical data to subtype sig.score data frame\n")
 sub_scres$ost = 0
 sub_scres$ose = 0
 sub_scres$rfst = 0
 sub_scres$rfse = 0
+sub_scres$CT = 0
+sub_scres$RT = 0
+sub_scres$HT = 0
+
 
 sub_clin = sub_clin[sub_clin$pid %in% sub_scres$pid,]
 # print(head(sub_clin))
@@ -470,6 +477,11 @@ sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathB
 # For disease-free survival
 sub_scres[sub_clin$pid,"rfst"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"TOR"]
 sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
+# For treatment type
+sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
+sub_scres[sub_clin$pid,"RT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"RT"]
+sub_scres[sub_clin$pid,"HT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"HT"]
+
 
 ## Add all the other factors
 sub_scres[sub_clin$pid,"age"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"])
@@ -501,17 +513,19 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	         p.mat = subcorres$P, sig.level = 0.0001) ## Specialized the insignificant value according to the significant level
 	dev.off()
 
-	cat("Generate scatter plot of correlation between sig.score and other gene\n")
-	scat_cor<-ggscatter(sub_corr, x = "sig_score", y = scatt_gene, # genes correlate with sig.score
-	   color = "black", shape = 21, size = 3, 
-	   add = "reg.line",  # Add regressin line
-	   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
-	   conf.int = TRUE, # Add confidence interval
-	   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
-	   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
-	   )
-	scat_tiff = paste(res_dir, db_name, sg_name, pamst, "gene_corr_scat.tiff", sep = "_")
-	ggsave(scat_cor, file = scat_tiff)
+    for (ig in 1:length(corr_gene)) { cat("Generate scatter plot of correlation between sig.score and other gene\n")
+		scat_cor<-ggscatter(sub_corr, x = "sig_score", y = corr_gene[ig], # genes correlate with sig.score
+		   color = "black", shape = 21, size = 2, 
+		   add = "reg.line",  # Add regressin line
+		   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+		   conf.int = TRUE, # Add confidence interval
+		   cor.coef = TRUE, # Add correlation coefficient.
+		   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
+		   )
+		scat_tiff = paste(res_dir, db_name, sg_name, pamst, corr_gene[ig], "corr_scat.tiff", sep = "_")
+		ggsave(scat_cor, file = scat_tiff)
+	}
+
 }
 
 #################################################################################
