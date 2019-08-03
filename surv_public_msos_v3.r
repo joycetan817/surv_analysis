@@ -144,10 +144,10 @@ suppressMessages(library(Hmisc))
 work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
 db_name = "metabric"
 #sg_name = "loi_trm" # Loi's TRM sig
-#sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
-sg_name = "mamma" # mamma sig
-expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = FALSE # NOTE: ilid requires this as TRUE; median as FALSE
+sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
+#sg_name = "mamma" # mamma sig
+expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = TRUE # NOTE: ilid requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -168,27 +168,28 @@ annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 }
 
 #sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
-#sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
-sign_file = "mamma_signature_v1.txt" # Signature file mamma
+sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
+#sign_file = "mamma_signature_v1.txt" # Signature file mamma
 
 
 histype = "IDC" # histology type: IDC/DCIS
 pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
-hrtype = c("-", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
+hrtype = c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
-gptype = "mamma sig.score"
+gptype = "Tex sig.score"
+trt_type = c("ct", "rt", "ht") # check the correlation between sig.score and treatment
 
 
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_mamma_all_cbpt" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_ER+_IDC_meta_trt" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -202,8 +203,8 @@ cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
-#expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
-expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
+expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
+#expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 
@@ -466,6 +467,9 @@ sub_scres$rfse = 0
 sub_scres$CT = 0
 sub_scres$RT = 0
 sub_scres$HT = 0
+sub_scres$ct = "YES"
+sub_scres$rt = "YES"
+sub_scres$ht = "YES"
 
 
 sub_clin = sub_clin[sub_clin$pid %in% sub_scres$pid,]
@@ -482,7 +486,19 @@ sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
 sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
 sub_scres[sub_clin$pid,"RT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"RT"]
 sub_scres[sub_clin$pid,"HT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"HT"]
+sub_scres$ct[sub_scres$CT == "NO/NA"] = "NO"
+sub_scres$rt[sub_scres$RT == "NO/NA"] = "NO"
+sub_scres$ht[sub_scres$HT == "NO/NA"] = "NO"
 
+if(trt_type != "") { 
+	for (it in 1:length(trt_type)) { cat("Generate sig.score box plot with", trt_type[it], "treatment\n")
+		sig_trt <- ggboxplot(sub_scres, x = trt_type[it], y = "sig_score",
+		               color = trt_type[it], palette = "jco",
+		               add = "jitter") + stat_compare_means(method = "t.test")
+        box_tif = paste(res_dir, db_name, sg_name, pamst, trt_type[it], "corr.tiff", sep = "_")
+        ggsave(sig_trt, file = box_tif)
+	}
+}
 
 ## Add all the other factors
 sub_scres[sub_clin$pid,"age"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"])
@@ -491,7 +507,7 @@ sub_scres[sub_clin$pid,"tsize"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scre
 sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"])
 
 # print(head(sub_scres))
-# print(dim(sub_scres))
+print(dim(sub_scres))
 # print(dim(sub_clin))
 # q(save = "no")
 
@@ -523,12 +539,11 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 		   cor.coef = TRUE, # Add correlation coefficient.
 		   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
 		   )
-		scat_tiff = paste(res_dir, db_name, sg_name, pamst, corr_gene[ig], "corr_scat.tiff", sep = "_")
-		ggsave(scat_cor, file = scat_tiff)
+		scat_tif = paste(res_dir, db_name, sg_name, pamst, corr_gene[ig], "corr_scat.tiff", sep = "_")
+		ggsave(scat_cor, file = scat_tif)
 	}
 
 }
-
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
