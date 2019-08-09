@@ -37,12 +37,22 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 		if (multicox) {
 			cat("\tMulti-variant Cox analysis with ", coxfac, "\n")
 			if (gdoi == 0) {
-				res.cox <- coxph(Surv(time, status) ~ gpvalue+age+grade+tsize+node_stat, data=surv_data)
-			} else {res.cox <- coxph(Surv(time, status) ~ gpvalue+age+tsize+node_stat, data=surv_data)} 
+				if(db_name != "tcga_brca") {
+					res.cox <- coxph(Surv(time, status) ~ gpvalue+age+grade+tsize+node_stat, data=surv_data)
+				} else {
+					res.cox <- coxph(Surv(time, status) ~ gpvalue+age+grade+node_stat, data=surv_data)
+				}	
+			} else {
+				if(db_name != "tcga_brca") {
+					res.cox <- coxph(Surv(time, status) ~ gpvalue+age+tsize+node_stat, data=surv_data)
+					} else {
+						res.cox <- coxph(Surv(time, status) ~ gpvalue+age+node_stat, data=surv_data)
+					} 
+			}
 		} else {
-			cat("\tSingle-variant Cox analysis with ", gptype, "\n")
-			res.cox <- coxph(Surv(time, status) ~ gpvalue, data=surv_data)
-		}
+				cat("\tSingle-variant Cox analysis with ", gptype, "\n")
+				res.cox <- coxph(Surv(time, status) ~ gpvalue, data=surv_data)
+	    }
 		prescox = summary(res.cox) # Print results of COX
 		sum_txt = paste(cox, lab, gptype, "_summary_cox_results.txt", sep = "")
 		sink(sum_txt)
@@ -52,8 +62,8 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 		cat("\t\tP-value from logRank test: ", (prescox$sctest["pvalue"]), "\n") 
 		saveRDS(res.cox, file=cox_rds)
 		} else {cat("WARNING: NO event happened in this group!\n")}
-	
 	}
+
 	if (csv != "") {
 		surv_rescsv <- paste(csv, lab, gptype, "_survana_res.csv", sep="")
 		write.csv(fit_df, file=surv_rescsv)}
@@ -85,8 +95,8 @@ singene_expr = function (gene, expr, annot, subdf, caltype = "mean", map = TRUE)
 		gene_info = subset(annot, ILMN_Gene == gene) # ILMN_Gene is the column of gene name which is used to extract gene probe ID
 		if (dim(gene_info)[1] == 0) {stop("No MATCHED gene found!!!")}
 #		print(gene_info)
-		if (sum(gene_info$probe %in% rownames(expr)) == 0) {stop("NO MATCHED probe found!!!")}
-		gene_probe = expr[gene_info$probe,]
+		if (sum(gene_info$Probe_Id %in% rownames(expr)) == 0) {stop("NO MATCHED probe found!!!")}
+		gene_probe = expr[gene_info$Probe_Id,]
 
 		if (caltype == "mean") {
 			sub_expr = as.data.frame(apply(gene_probe, 2, FUN = mean))
@@ -142,12 +152,13 @@ suppressMessages(library(Hmisc))
 #################################################################################
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
 work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
-db_name = "metabric"
+#db_name = "metabric"
+db_name = "tcga_brca"
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = TRUE # NOTE: ilid requires this as TRUE; median as FALSE
+expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -177,19 +188,19 @@ pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 hrtype = c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
-gp_app = "symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
-qcut = 0.25 # This is TOP quantile for oneqcut approach
+gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
+qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "Tex sig.score"
-trt_type = c("ct", "rt", "ht") # check the correlation between sig.score and treatment
+trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
 
 
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_ER+_IDC_meta_trt" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_ER+_IDC_tcga" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -203,10 +214,12 @@ cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
-expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
+#expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
+expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
+expr<-as.data.frame(expr)
 
 cat("Loading clinical data...\n")
 st = Sys.time()
@@ -226,8 +239,9 @@ if (FALSE) {
 	q(save = "no")
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
-clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
-# clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
+#clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
+clin_info = readRDS("07212019_tcga_clinical_info.RDS")
+#clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
 # saveRDS(clin_info, file = paste(data_dir, "07212019_tcga_clinical_info.RDS", sep = ""))
 print(Sys.time()-st)
 
@@ -464,12 +478,14 @@ sub_scres$ost = 0
 sub_scres$ose = 0
 sub_scres$rfst = 0
 sub_scres$rfse = 0
-sub_scres$CT = 0
-sub_scres$RT = 0
-sub_scres$HT = 0
-sub_scres$ct = "YES"
-sub_scres$rt = "YES"
-sub_scres$ht = "YES"
+if(db_name != "tcga_brca") {
+	sub_scres$CT = 0
+	sub_scres$RT = 0
+	sub_scres$HT = 0
+	sub_scres$ct = "YES"
+	sub_scres$rt = "YES"
+	sub_scres$ht = "YES"
+}
 
 
 sub_clin = sub_clin[sub_clin$pid %in% sub_scres$pid,]
@@ -483,12 +499,14 @@ sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathB
 sub_scres[sub_clin$pid,"rfst"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"TOR"]
 sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
 # For treatment type
-sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
-sub_scres[sub_clin$pid,"RT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"RT"]
-sub_scres[sub_clin$pid,"HT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"HT"]
-sub_scres$ct[sub_scres$CT == "NO/NA"] = "NO"
-sub_scres$rt[sub_scres$RT == "NO/NA"] = "NO"
-sub_scres$ht[sub_scres$HT == "NO/NA"] = "NO"
+if(db_name != "tcga_brca") {
+	sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
+	sub_scres[sub_clin$pid,"RT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"RT"]
+	sub_scres[sub_clin$pid,"HT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"HT"]
+	sub_scres$ct[sub_scres$CT == "NO/NA"] = "NO"
+	sub_scres$rt[sub_scres$RT == "NO/NA"] = "NO"
+	sub_scres$ht[sub_scres$HT == "NO/NA"] = "NO"
+}
 
 if(trt_type != "") { 
 	for (it in 1:length(trt_type)) { cat("Generate sig.score box plot with", trt_type[it], "treatment\n")
