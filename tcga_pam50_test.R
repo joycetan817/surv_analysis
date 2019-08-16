@@ -511,7 +511,7 @@ if(db_name != "tcga_brca") {
 	sub_scres$ht[sub_scres$HT == "NO/NA"] = "NO"
 }
 
-if(trt_type != "") { 
+if(trt_type != "") {
 	for (it in 1:length(trt_type)) { cat("Generate sig.score box plot with", trt_type[it], "treatment\n")
 		sig_trt <- ggboxplot(sub_scres, x = trt_type[it], y = "sig_score",
 		               color = trt_type[it], palette = "jco",
