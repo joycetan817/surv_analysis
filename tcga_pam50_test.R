@@ -13,7 +13,7 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 
 	if(type == "os") {
 		cat("Analyzing overall survival...\n")
-		surv_data = data[,c("group" ,"gpvalue" ,"ost", "ose", coxfac)]
+		surv_data = sub_scres
 		lab = "Overall survival"
 	}
 	if(type == "rfs") {
@@ -21,7 +21,8 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 		surv_data = data[,c("group" ,"gpvalue" ,"rfst" ,"rfse" , coxfac)]
 		lab = "Relapse-free survival"
 	}
-	colnames(surv_data)[3:4] <- c("time", "status")
+	colnames(surv_data)[4:5] <- c("time", "status")
+	surv_data$time = as.numeric(surv_data$time)
 	surv_data$status = as.numeric(surv_data$status)
 	numh = sum(surv_data$group == "High")
 	numl = sum(surv_data$group == "Low")
@@ -157,7 +158,7 @@ db_name = "tcga_brca"
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
 selfmap = FALSE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
@@ -217,7 +218,7 @@ st = Sys.time()
 #expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
 #expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
-expr = readRDS("tcga_portal_data_expr_v2.RDS")
+expr = readRDS("tcga_portal_data_expr_v3.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 expr<-as.data.frame(expr)
@@ -368,13 +369,13 @@ if (selfmap) {
 	# data = [r:sample, c:gene]
 	# annot = [r:gene, c: genome annotation] 
 	# x = [r: genes in signature, c: probe+EntrezGene.ID, coefficient]
-	if (expr_type == "median") {rownames(expr) = expr[,1]}
-	ssdata = expr[, 3:dim(expr)[2]]
-	ssdata = as.data.frame(t(ssdata))
+	
+	
+	ssdata = as.data.frame(t(expr))
 	cat("Expression data dimension, sample: probe ", dim(ssdata), "\n")
 	print(ssdata[1:9,1:6])
 
-	ssannot = expr[,1:2]
+	ssannot = annot
 	cat("Annotation data dimension, probe: annot ", dim(ssannot), "\n")
 	print(head(ssannot))
 
@@ -384,13 +385,14 @@ if (selfmap) {
 	ol_gene = intersect(sign_gene, anno_gene)
 	unava_gene = setdiff(sign_gene, ol_gene)
 	cat("Unavailable",length(unava_gene) ," genes: ", unava_gene, "\n")
-	sub_annot = ssannot[ssannot$Hugo_Symbol %in% sign_gene,]
+	sub_annot = ssannot[ssannot$ILMN_Gene %in% sign_gene,]
+	rownames(sub_annot)<-sub_annot$ILMN_Gene
 	cat("Available probe: ", dim(sub_annot)[1], "\n")
 	sssign = as.data.frame(matrix(ncol = 3, nrow = dim(sub_annot)[1])) # Initialize sig.score x
 	colnames(sssign) = c("probe", "EntrezGene.ID", "coefficient")
 	rownames(sssign) = rownames(sub_annot)
 	sssign$probe = rownames(sub_annot)
-	sssign$EntrezGene.ID = sub_annot$Entrez_Gene_Id
+	sssign$EntrezGene.ID = sub_annot$EntrezGene.ID
 
 	sssign$coefficient = sign[sssign$probe,"logfc"]
 	cat("Run sig.score in all patient samples\n")
@@ -479,8 +481,7 @@ ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in")
 cat("Extract survival and treatment information from clinical data to subtype sig.score data frame\n")
 sub_scres$ost = 0
 sub_scres$ose = 0
-sub_scres$rfst = 0
-sub_scres$rfse = 0
+
 if(db_name != "tcga_brca") {
 	sub_scres$CT = 0
 	sub_scres$RT = 0
@@ -499,8 +500,7 @@ sub_clin = sub_clin[sub_clin$pid %in% sub_scres$pid,]
 sub_scres[sub_clin$pid,"ost"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"T"]
 sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathBreast"]
 # For disease-free survival
-sub_scres[sub_clin$pid,"rfst"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"TOR"]
-sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
+
 # For treatment type
 if(db_name != "tcga_brca") {
 	sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
@@ -522,10 +522,7 @@ if(trt_type != "") {
 }
 
 ## Add all the other factors
-sub_scres[sub_clin$pid,"age"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"])
-sub_scres[sub_clin$pid,"grade"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"])
-sub_scres[sub_clin$pid,"tsize"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"])
-sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"])
+
 
 # print(head(sub_scres))
 print(dim(sub_scres))
@@ -586,7 +583,7 @@ if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 
 #################################################################################
 survana(data = sub_scres, type = "os", plot = res_dir, gptype = gptype, 
-	cox = res_dir, multicox = TRUE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)
+	cox = res_dir, multicox = FALSE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)
 if (db_name != "tcga_brca") {
 survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = gptype, 
 	cox = res_dir, coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)}
