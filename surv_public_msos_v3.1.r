@@ -172,22 +172,22 @@ sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
 
 
-histype = "IDC" # histology type: IDC/DCIS
+histype = "" # histology type: IDC/DCIS
 pamst = "Basal" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
-hrtype = c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
+hrtype = ""#c("-", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "oneqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 # This is TOP quantile for oneqcut approach
-gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+gp_gene = "CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
-corr_gene = c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
-gptype = "TRM sig.score"
+corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
+gptype = "CD8"#"TRM sig.score"
 
 
 #################################################################################
 # Work for experiment records
-res_folder = "one25_trm_basal_TNBC_IDC_meta" # NOTE: Please change this folder name to identify your experiments
+res_folder = "one25_CD8_basal_meta" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -202,6 +202,7 @@ st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
 expr = readRDS("metabric_expr_ilid.RDS") # When test the script
+#expr = readRDS("data_expression_median.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 
