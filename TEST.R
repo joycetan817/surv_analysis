@@ -13,7 +13,7 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 
 	if(type == "os") {
 		cat("Analyzing overall survival...\n")
-		surv_data = data[,c("group" ,"gpvalue" ,"ost", "ose", coxfac)]
+		surv_data = sub_scres
 		lab = "Overall survival"
 	}
 	if(type == "rfs") {
@@ -21,7 +21,8 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 		surv_data = data[,c("group" ,"gpvalue" ,"rfst" ,"rfse" , coxfac)]
 		lab = "Relapse-free survival"
 	}
-	colnames(surv_data)[3:4] <- c("time", "status")
+	colnames(surv_data)[4:5] <- c("time", "status")
+	surv_data$time = as.numeric(surv_data$time)
 	surv_data$status = as.numeric(surv_data$status)
 	numh = sum(surv_data$group == "High")
 	numl = sum(surv_data$group == "Low")
@@ -127,11 +128,11 @@ singene_expr = function (gene, expr, annot, subdf, caltype = "mean", map = TRUE)
 	if (dim(sub_res)[1] == dim(subdf)[1]) {
 		cat("\tAll the patients are matched!\n")
 	} else {
-		cat("\tWarning: missed p
-	return(sub_res)
-atients!!!\n")
+		cat("\tWarning: missed patients!!!\n")
 	}
 	print(head(sub_res))
+	return(sub_res)
+
 }
 # Please load all the packages at the very begining of each script
 cat("Loading genefu library...\n")
@@ -158,7 +159,7 @@ db_name = "tcga_brca"
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
 expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
+selfmap = FALSE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -183,24 +184,25 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
 
 
-histype = "IDC" # histology type: IDC/DCIS
+histype = "" # histology type: IDC/DCIS
 pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 hrtype = "" #c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
-gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
+gp_app = "oneqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "Tex sig.score"
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
+SampleType = ""#"Normal"
 
 
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_IDC_tcga_log2" # NOTE: Please change this folder name to identify your experiments
+res_folder = "pri_normal_pair" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -215,12 +217,13 @@ st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
 #expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
-expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
+#expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
+expr = readRDS("tcga_portal_data_expr_v3.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 expr<-as.data.frame(expr)
-expr<-2^expr
+expr<-log2(expr)
 
 cat("Loading clinical data...\n")
 st = Sys.time()
@@ -241,8 +244,8 @@ if (FALSE) {
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
 #clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
-clin_info = readRDS("07212019_tcga_clinical_info.RDS")
-#clin_info = read_excel("mydata.xlsx", sheet = 1)
+clin_info = read_excel("pri_norm_clin_info.xlsx", sheet= 1 )
+#clin_info = readRDS("07212019_tcga_clinical_info.RDS")
 #clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
 # saveRDS(clin_info, file = paste(data_dir, "07212019_tcga_clinical_info.RDS", sep = ""))
 print(Sys.time()-st)
@@ -253,11 +256,15 @@ cat("\tOriginal patient number: ", dim(sub_clin)[1], "\n")
 if (histype !=  "") {
 	# For IDC
 	sub_clin = sub_clin[sub_clin[,"oncotree_code"] %in% histype,]
-	#sub_clin = sub_clin[sub_clin[,"Oncotree.Code"] %in% histype,]
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 }
 
+if (SampleType == "Normal") {
+	sub_clin = subset(sub_clin, SampleType == "Solid Tissue Normal")
+	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+}
 if (gdoi != 0) {
 	# print(head(sub_clin))
 	sub_clin = sub_clin[sub_clin[,"grade"] %in% gdoi,]
@@ -319,6 +326,7 @@ print(Sys.time()-st)
 cat("Load gene signature...\n")
 sign = read.table(paste(sign_dir, sign_file, sep = ""), header = TRUE, row.names = 1)
 
+
 #################################################################################
 if (selfmap) {
 	## PREP for sig.score with MAPPPING
@@ -368,13 +376,13 @@ if (selfmap) {
 	# data = [r:sample, c:gene]
 	# annot = [r:gene, c: genome annotation] 
 	# x = [r: genes in signature, c: probe+EntrezGene.ID, coefficient]
-	if (expr_type == "median") {rownames(expr) = expr[,1]}
-	ssdata = expr[, 3:dim(expr)[2]]
-	ssdata = as.data.frame(t(ssdata))
+	
+	
+	ssdata = as.data.frame(t(expr))
 	cat("Expression data dimension, sample: probe ", dim(ssdata), "\n")
 	print(ssdata[1:9,1:6])
 
-	ssannot = expr[,1:2]
+	ssannot = annot
 	cat("Annotation data dimension, probe: annot ", dim(ssannot), "\n")
 	print(head(ssannot))
 
@@ -384,13 +392,14 @@ if (selfmap) {
 	ol_gene = intersect(sign_gene, anno_gene)
 	unava_gene = setdiff(sign_gene, ol_gene)
 	cat("Unavailable",length(unava_gene) ," genes: ", unava_gene, "\n")
-	sub_annot = ssannot[ssannot$Hugo_Symbol %in% sign_gene,]
+	sub_annot = ssannot[ssannot$ILMN_Gene %in% sign_gene,]
+	rownames(sub_annot)<-sub_annot$ILMN_Gene
 	cat("Available probe: ", dim(sub_annot)[1], "\n")
 	sssign = as.data.frame(matrix(ncol = 3, nrow = dim(sub_annot)[1])) # Initialize sig.score x
 	colnames(sssign) = c("probe", "EntrezGene.ID", "coefficient")
 	rownames(sssign) = rownames(sub_annot)
 	sssign$probe = rownames(sub_annot)
-	sssign$EntrezGene.ID = sub_annot$Entrez_Gene_Id
+	sssign$EntrezGene.ID = sub_annot$EntrezGene.ID
 
 	sssign$coefficient = sign[sssign$probe,"logfc"]
 	cat("Run sig.score in all patient samples\n")
@@ -417,7 +426,7 @@ sub_sigscore = sub_scres
 
 if (gp_gene != "") {
 	cat("Using ", gp_gene, " as the group criteria...\n")
-	sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres, caltype = "mean", map = selfmap)
+	sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres, map = selfmap)
 	sub_scres = sub_expr
 	sub_scres[,"gpvalue"] = sub_scres[,gp_gene]
 	hist_xlab = gp_gene
@@ -426,9 +435,9 @@ if (gp_gene != "") {
 	hist_xlab = "Signature Score"
 }
 
+stop()
 #################################################################################
 ## Histogram for sig.score
-if(FALSE) {
 cat("Generate histogram plot of signature score\n")
 title = paste(db_name, sg_name, pamst, sep = "  ")
 sc_hist = ggplot(sub_scres, aes(x=gpvalue)) + 
@@ -475,24 +484,12 @@ sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_z
 # hist_tif = paste(sign_dir, db_name, sg_name, pamst, ".tiff", sep = "_")
 ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in")
 
-}
-
-if (gp_app == "oneqcut") {
-	cat("Group the patient by one quantile cutoff: ", qcut,"\n")
-	qcov = quantile(sub_scres$gpvalue, c(1-qcut))}
-
-if (gp_app == "symqcut") {
-	cat("Group the patient by one quantile cutoff with symmetric manner: ", qcut,"\n")
-
-	qcov = quantile(sub_scres$gpvalue, c(qcut, 1-qcut)) }
-
 #################################################################################
 ## Assign survival data
 cat("Extract survival and treatment information from clinical data to subtype sig.score data frame\n")
 sub_scres$ost = 0
 sub_scres$ose = 0
-sub_scres$rfst = 0
-sub_scres$rfse = 0
+
 if(db_name != "tcga_brca") {
 	sub_scres$CT = 0
 	sub_scres$RT = 0
@@ -511,8 +508,7 @@ sub_clin = sub_clin[sub_clin$pid %in% sub_scres$pid,]
 sub_scres[sub_clin$pid,"ost"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"T"]
 sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathBreast"]
 # For disease-free survival
-sub_scres[sub_clin$pid,"rfst"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"TOR"]
-sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
+
 # For treatment type
 if(db_name != "tcga_brca") {
 	sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
@@ -523,7 +519,7 @@ if(db_name != "tcga_brca") {
 	sub_scres$ht[sub_scres$HT == "NO/NA"] = "NO"
 }
 
-if(trt_type != "") { 
+if(trt_type != "") {
 	for (it in 1:length(trt_type)) { cat("Generate sig.score box plot with", trt_type[it], "treatment\n")
 		sig_trt <- ggboxplot(sub_scres, x = trt_type[it], y = "sig_score",
 		               color = trt_type[it], palette = "jco",
@@ -534,10 +530,7 @@ if(trt_type != "") {
 }
 
 ## Add all the other factors
-sub_scres[sub_clin$pid,"age"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"])
-sub_scres[sub_clin$pid,"grade"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"])
-sub_scres[sub_clin$pid,"tsize"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"])
-sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"])
+
 
 # print(head(sub_scres))
 print(dim(sub_scres))
@@ -598,7 +591,7 @@ if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 
 #################################################################################
 survana(data = sub_scres, type = "os", plot = res_dir, gptype = gptype, 
-	cox = res_dir, multicox = TRUE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)
+	cox = res_dir, multicox = FALSE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)
 if (db_name != "tcga_brca") {
 survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = gptype, 
 	cox = res_dir, coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)}
