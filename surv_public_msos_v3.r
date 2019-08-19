@@ -157,8 +157,8 @@ db_name = "tcga_brca"
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
+expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = FALSE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -184,8 +184,8 @@ sign_file = "tex_signature_colt_v2.txt"
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
 
 
-histype = "IDC" # histology type: IDC/DCIS
-pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
+histype = "" # histology type: IDC/DCIS
+pamst = "LumA" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 hrtype = "" #c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
@@ -201,7 +201,11 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
+<<<<<<< HEAD
 res_folder = "sym25_tex_v2_IDC_tcga" # NOTE: Please change this folder name to identify your experiments
+=======
+res_folder = "sym25_tex_LumA_tcga" # NOTE: Please change this folder name to identify your experiments
+>>>>>>> dd9361d94bcb174788a9b0b7ee5147c4aa28f694
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -216,8 +220,9 @@ st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
 #expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
-expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
+#expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
+expr = readRDS("tcga_portal_data_expr_v2.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 expr<-as.data.frame(expr)
@@ -241,8 +246,13 @@ if (FALSE) {
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
 #clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
+<<<<<<< HEAD
 clin_info = readRDS("07212019_tcga_clinical_info.RDS")
 #clin_info = read_excel("mydata.xlsx", sheet = 1)
+=======
+clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
+#clin_info = readRDS("07212019_tcga_clinical_info.RDS")
+>>>>>>> dd9361d94bcb174788a9b0b7ee5147c4aa28f694
 #clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
 # saveRDS(clin_info, file = paste(data_dir, "07212019_tcga_clinical_info.RDS", sep = ""))
 print(Sys.time()-st)
@@ -318,6 +328,7 @@ print(Sys.time()-st)
 
 cat("Load gene signature...\n")
 sign = read.table(paste(sign_dir, sign_file, sep = ""), header = TRUE, row.names = 1)
+
 
 #################################################################################
 if (selfmap) {
