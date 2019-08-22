@@ -75,7 +75,7 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 				       pval = TRUE, pval.size = 6, pval.coord = c(0, 0.2),
 				       conf.int = TRUE, conf.int.alpha = 0.2,
 				       xlab = "Time (days)", ylab = lab, legend.title = gptype,
-				       legend.labs = c("High", "Low"),
+				       #legend.labs = c("High", "Low"),
 #                                      surv.median.line = "hv",
 				       ggtheme = theme_classic(),
 				       palette = c("#E7B800", "#2E9FDF"), 
@@ -190,7 +190,7 @@ gdoi = 0 #c(1) # Grade of interest: 1/2/3
 hrtype = "" #c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
-qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
+qcut = 0.35 #0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
@@ -201,7 +201,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_LumA_tcga" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym35_tex_LumA_tcga" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -222,6 +222,8 @@ expr = readRDS("tcga_portal_data_expr_v3.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 expr<-as.data.frame(expr)
+#expr<-log2(expr)
+#expr[expr== -Inf]=0
 
 cat("Loading clinical data...\n")
 st = Sys.time()
