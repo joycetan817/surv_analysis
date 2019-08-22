@@ -155,8 +155,8 @@ suppressMessages(library(Hmisc))
 work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
 #db_name = "metabric"
 db_name = "tcga_brca"
-#sg_name = "loi_trm" # Loi's TRM sig
-sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
+sg_name = "loi_trm" # Loi's TRM sig
+#sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
 expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
 selfmap = FALSE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
@@ -179,17 +179,17 @@ clin_rds = "07212019_tcga_clinical_info.RDS" # clinical information with merged 
 annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 }
 
-#sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
-sign_file = "tex_signature_colt_v2.txt" # Signature file Colt's Tex
+sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
+#sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
 
 
 histype = "" # histology type: IDC/DCIS
-pamst = "LumA" # PAM50 status: LumA/LumB/Basal/Normal/Her2
+pamst = "Basal" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 hrtype = "" #c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
-gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
+gp_app = "oneqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
@@ -201,7 +201,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_v2_LumA_tcga" # NOTE: Please change this folder name to identify your experiments
+res_folder = "one25_trm_basal_tcga_pam50" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -242,6 +242,7 @@ if (FALSE) {
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
 #clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
+#clin_info = read_excel("TCGA_BRCA_clin_info.xlsx", sheet = 2)
 clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
 #clin_info = readRDS("07212019_tcga_clinical_info.RDS")
 #clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
@@ -428,6 +429,7 @@ if (gp_gene != "") {
 	hist_xlab = "Signature Score"
 }
 
+stop()
 #################################################################################
 ## Histogram for sig.score
 cat("Generate histogram plot of signature score\n")
