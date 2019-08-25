@@ -74,7 +74,7 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 				       pval = TRUE, pval.size = 6, pval.coord = c(0, 0.2),
 				       conf.int = TRUE, conf.int.alpha = 0.2,
 				       xlab = "Time (days)", ylab = lab, legend.title = gptype,
-				       legend.labs = c("High", "Low"),
+				       #legend.labs = c("High", "Low"),
 #                                      surv.median.line = "hv",
 				       ggtheme = theme_classic(),
 				       palette = c("#E7B800", "#2E9FDF"), 
@@ -434,6 +434,7 @@ if (gp_gene != "") {
 	sub_scres[,"gpvalue"] = sub_scres[,"sig_score"]
 	hist_xlab = "Signature Score"
 }
+
 
 #################################################################################
 ## Histogram for sig.score
