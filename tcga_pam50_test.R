@@ -75,7 +75,7 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 				       pval = TRUE, pval.size = 6, pval.coord = c(0, 0.2),
 				       conf.int = TRUE, conf.int.alpha = 0.2,
 				       xlab = "Time (days)", ylab = lab, legend.title = gptype,
-				       #legend.labs = c("High", "Low"),
+				       legend.labs = c("High", "Low"),
 #                                      surv.median.line = "hv",
 				       ggtheme = theme_classic(),
 				       palette = c("#E7B800", "#2E9FDF"), 
@@ -185,12 +185,12 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
 
 histype = "" # histology type: IDC/DCIS
-pamst = "LumA" # PAM50 status: LumA/LumB/Basal/Normal/Her2
+pamst = "Basal" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 hrtype = "" #c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
-qcut = 0.35 #0.25 # This is TOP quantile for oneqcut approach
+qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
@@ -201,7 +201,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym35_tex_LumA_tcga" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_basal_tcga_pam50" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -266,6 +266,7 @@ if (gdoi != 0) {
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 }
+
 if (pamst != "") {
 	cat("Using PAM50 as molecular subtype classifier: ", pamst, "\n")
 	sub_clin = sub_clin[sub_clin[,"Pam50Subtype"] == pamst,]
@@ -582,6 +583,8 @@ if (length(qcov) == 2) {
 	sub_scres = sub_scres[sub_scres$group != "Medium",]
 	}
 if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
+
+stop()
 
 #################################################################################
 survana(data = sub_scres, type = "os", plot = res_dir, gptype = gptype, 
