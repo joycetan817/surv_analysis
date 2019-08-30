@@ -159,7 +159,7 @@ db_name = "tcga_brca"
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
 expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = FALSE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
+selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -184,9 +184,10 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
 
 
-histype = "" # histology type: IDC/DCIS
-pamst = "Basal" # PAM50 status: LumA/LumB/Basal/Normal/Her2
+histype = "IDC" # histology type: IDC/DCIS
+pamst = c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
+stageoi = c(3,4) # Stage of interest: 1/2/3/4
 hrtype = "" #c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
@@ -201,7 +202,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_basal_tcga_pam50" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_LumAB_IDC_stage_34_tcga" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -216,9 +217,9 @@ st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
 #expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
-#expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
+expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
-expr = readRDS("tcga_portal_data_expr_v3.RDS")
+#expr = readRDS("tcga_portal_data_expr_v3.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 expr<-as.data.frame(expr)
@@ -244,7 +245,8 @@ if (FALSE) {
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
 #clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
-clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
+#clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
+clin_info = read_excel("tcga_clin_pam50_stage.xlsx", sheet= 1 )
 #clin_info = readRDS("07212019_tcga_clinical_info.RDS")
 #clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
 # saveRDS(clin_info, file = paste(data_dir, "07212019_tcga_clinical_info.RDS", sep = ""))
@@ -255,7 +257,7 @@ sub_clin = clin_info
 cat("\tOriginal patient number: ", dim(sub_clin)[1], "\n")
 if (histype !=  "") {
 	# For IDC
-	sub_clin = sub_clin[sub_clin[,"oncotree_code"] %in% histype,]
+	sub_clin = sub_clin[sub_clin[,"oncotree_code"] == histype,]
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 }
@@ -267,9 +269,16 @@ if (gdoi != 0) {
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 }
 
+if (stageoi != 0) {
+	sub_clin = subset(sub_clin, Stage %in% stageoi)
+	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+
+}
+
 if (pamst != "") {
 	cat("Using PAM50 as molecular subtype classifier: ", pamst, "\n")
-	sub_clin = sub_clin[sub_clin[,"Pam50Subtype"] == pamst,]
+	sub_clin = subset(sub_clin, Pam50Subtype %in% pamst)
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 } else {
@@ -477,7 +486,7 @@ sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_z
 						   "\n Percentile:", format(right_zero_count[1]/dim(sub_scres)[1]*100, digit = 4)), 
 		 x = zero_x[1], y = max(sc_hist_data$count), size = 4.5, colour = "black")
 # hist_tif = paste(sign_dir, db_name, sg_name, pamst, ".tiff", sep = "_")
-ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in")
+ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in", device = "tiff")
 
 #################################################################################
 ## Assign survival data
@@ -584,7 +593,7 @@ if (length(qcov) == 2) {
 	}
 if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 
-stop()
+
 
 #################################################################################
 survana(data = sub_scres, type = "os", plot = res_dir, gptype = gptype, 

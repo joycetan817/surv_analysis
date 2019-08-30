@@ -185,9 +185,9 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
 
 histype = "IDC" # histology type: IDC/DCIS
-pamst = "Basal" # PAM50 status: LumA/LumB/Basal/Normal/Her2
-gdoi = 0 #c(1) # Grade of interest: 1/2/3
-stageoi = c(1,2) # Stage of interest: 1/2/3/4
+pamst = c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
+gdoi = 3 #c(1) # Grade of interest: 1/2/3
+stageoi = 0 #c(3,4) # Stage of interest: 1/2/3/4
 hrtype = "" #c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
@@ -203,7 +203,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 #################################################################################
 # Work for experiment records
 
-res_folder = "sym25_tex_basal_IDC_stage_12_EGA" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_LumA_B_IDC_G3_EGA" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
