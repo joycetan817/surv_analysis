@@ -185,9 +185,10 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
 
 histype = "IDC" # histology type: IDC/DCIS
-pamst = c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
-gdoi = 3 #c(1) # Grade of interest: 1/2/3
+pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
+gdoi = 0 #c(1) # Grade of interest: 1/2/3
 stageoi = 0 #c(3,4) # Stage of interest: 1/2/3/4
+Tstageoi = 0 # T stage of interest : T1/T2/T3/T4
 hrtype = "" #c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
@@ -203,7 +204,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 #################################################################################
 # Work for experiment records
 
-res_folder = "sym25_tex_LumA_B_IDC_G3_EGA" # NOTE: Please change this folder name to identify your experiments
+res_folder = "tex_IDC_mutant_EGA" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -243,9 +244,9 @@ if (FALSE) {
 	q(save = "no")
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
-clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
+#clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
 #clin_info = read_excel("07212019_tcga_clinical_info.xlsx", sheet = 2) # early stages for mamma (stage I and II)
-#clin_info = read_excel("mydata.xlsx", sheet = 1)
+clin_info = read_excel("merge_clin_info_size_stage.xlsx", sheet = 1)
 
 #clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
 #clin_info = readRDS("07212019_tcga_clinical_info.RDS")
@@ -257,11 +258,10 @@ print(Sys.time()-st)
 cat("Start to filter by clinical info...\n")
 sub_clin = clin_info
 
-
 cat("\tOriginal patient number: ", dim(sub_clin)[1], "\n")
 if (histype !=  "") {
 	# For IDC
-	sub_clin = sub_clin[sub_clin[,"oncotree_code"] %in% histype,]
+	sub_clin = sub_clin[sub_clin[,"oncotree_code"] == histype,]
 	#sub_clin = sub_clin[sub_clin[,"Oncotree.Code"] %in% histype,]
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
@@ -281,9 +281,17 @@ if (stageoi != 0) {
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 
 }
+
+if (Tstageoi != 0) {
+	sub_clin = subset(sub_clin, Size_Tstage %in% Tstageoi)
+	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+
+}
+
 if (pamst != "") {
 	cat("Using PAM50 as molecular subtype classifier: ", pamst, "\n")
-	sub_clin = sub_clin[sub_clin[,"Pam50Subtype"] %in% pamst,]
+	sub_clin = subset(sub_clin, Pam50Subtype %in% pamst)
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 } else {
@@ -517,9 +525,19 @@ sub_clin = sub_clin[sub_clin$pid %in% sub_scres$pid,]
 # For overall survival
 sub_scres[sub_clin$pid,"ost"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"T"]
 sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathBreast"]
+sub_scres$ose <- as.numeric(sub_scres$ose)
 # For disease-free survival
 sub_scres[sub_clin$pid,"rfst"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"TOR"]
 sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
+#For stage/grade information
+sub_scres[sub_clin$pid,"stage"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Stage"]
+sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
+sub_scres[sub_clin$pid,"Tstage"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Size_Tstage"]
+sub_scres[sub_clin$pid,"mutation"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"mutation_count"]
+sub_scres$mutation <- as.numeric(sub_scres$mutation)
+
+
+
 # For treatment type
 if(db_name != "tcga_brca") {
 	sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
@@ -542,16 +560,17 @@ if(trt_type != "") {
 
 ## Add all the other factors
 if(db_name != "tcga_brca") {
-sub_scres[sub_clin$pid,"age"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"])
-sub_scres[sub_clin$pid,"grade"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"])
-sub_scres[sub_clin$pid,"tsize"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"])
-sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"])
+sub_scres[sub_clin$pid,"age"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"]
+sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
+sub_scres[sub_clin$pid,"tsize"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"]
+sub_scres[sub_clin$pid,"node_stat"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"]
 }
+
+
 # print(head(sub_scres))
 print(dim(sub_scres))
 # print(dim(sub_clin))
 # q(save = "no")
-
 #################################################################################
 # Add correlation gene expressions SEPERATIVELY
 if(corr_gene != "") { cat("Extract gene expression from expression data to subtype sig.score data frame for correlation...\n")
@@ -603,7 +622,7 @@ if (length(qcov) == 2) {
 	sub_scres = sub_scres[sub_scres$group != "Medium",]
 	}
 if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
-
+stop()
 #################################################################################
 survana(data = sub_scres, type = "os", plot = res_dir, gptype = gptype, 
 	cox = res_dir, multicox = TRUE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)

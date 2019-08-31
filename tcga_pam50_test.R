@@ -185,9 +185,10 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
 
 histype = "IDC" # histology type: IDC/DCIS
-pamst = c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
+pamst = "Basal" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
-stageoi = c(3,4) # Stage of interest: 1/2/3/4
+stageoi = 0 # Stage of interest: 1/2/3/4
+Tstageoi = "T2" #c("T3", "T4") # T stage of interest : T1/T2/T3/T4
 hrtype = "" #c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
@@ -202,7 +203,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_LumAB_IDC_stage_34_tcga" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_Basal_IDC_T2_tcga" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -271,6 +272,13 @@ if (gdoi != 0) {
 
 if (stageoi != 0) {
 	sub_clin = subset(sub_clin, Stage %in% stageoi)
+	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+
+}
+
+if (Tstageoi != 0) {
+	sub_clin = subset(sub_clin, Size_Tstage %in% Tstageoi)
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 
