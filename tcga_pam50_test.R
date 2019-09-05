@@ -184,14 +184,15 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
 
 
-histype = "IDC" # histology type: IDC/DCIS
-pamst = "Basal" # PAM50 status: LumA/LumB/Basal/Normal/Her2
+
+histype = "" # histology type: IDC/DCIS
+pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 stageoi = 0 # Stage of interest: 1/2/3/4
-Tstageoi = "T2" #c("T3", "T4") # T stage of interest : T1/T2/T3/T4
-hrtype = "" #c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
+Tstageoi = "" #c("T3", "T4") # T stage of interest : T1/T2/T3/T4
+hrtype = c("N", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
-gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
+gp_app = "oneqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
@@ -203,7 +204,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_Basal_IDC_T2_tcga" # NOTE: Please change this folder name to identify your experiments
+res_folder = "ER-_tcga" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run

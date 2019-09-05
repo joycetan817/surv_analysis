@@ -185,11 +185,11 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
 
 histype = "IDC" # histology type: IDC/DCIS
-pamst = "" # PAM50 status: LumA/LumB/Basal/Normal/Her2
+pamst = "Basal" #c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 stageoi = 0 #c(3,4) # Stage of interest: 1/2/3/4
 Tstageoi = 0 # T stage of interest : T1/T2/T3/T4
-hrtype = "" #c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
+hrtype = ""#c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
@@ -204,7 +204,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 #################################################################################
 # Work for experiment records
 
-res_folder = "tex_IDC_mutant_EGA" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_basal_IDC_EGA" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -538,6 +538,7 @@ sub_scres$mutation <- as.numeric(sub_scres$mutation)
 
 
 
+
 # For treatment type
 if(db_name != "tcga_brca") {
 	sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
@@ -604,6 +605,7 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	}
 
 }
+
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
@@ -623,6 +625,7 @@ if (length(qcov) == 2) {
 	}
 if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 stop()
+
 #################################################################################
 survana(data = sub_scres, type = "os", plot = res_dir, gptype = gptype, 
 	cox = res_dir, multicox = TRUE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)
