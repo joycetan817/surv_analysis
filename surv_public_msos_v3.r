@@ -158,7 +158,7 @@ db_name = "tcga_brca"
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
 expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
+selfmap = TRUE # NOTE: ilid/tcga require this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -184,9 +184,9 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
 
 histype = "IDC" # histology type: IDC/DCIS
-pamst = "LumA" # PAM50 status: LumA/LumB/Basal/Normal/Her2
+pamst = c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
-hrtype = ""# c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
+hrtype = "" # c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
@@ -200,7 +200,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_LumA_IDC_tcga" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_LumA_B_IDC_tcga" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -267,7 +267,7 @@ if (gdoi != 0) {
 }
 if (pamst != "") {
 	cat("Using PAM50 as molecular subtype classifier: ", pamst, "\n")
-	sub_clin = sub_clin[sub_clin[,"Pam50Subtype"] == pamst,]
+	sub_clin = sub_clin[sub_clin[,"Pam50Subtype"] %in% pamst,]
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 } else {
@@ -512,7 +512,7 @@ if(db_name != "tcga_brca") {
 	sub_scres$rt[sub_scres$RT == "NO/NA"] = "NO"
 	sub_scres$ht[sub_scres$HT == "NO/NA"] = "NO"
 }
-stop()
+
 if(trt_type != "") { 
 	for (it in 1:length(trt_type)) { cat("Generate sig.score box plot with", trt_type[it], "treatment\n")
 		sig_trt <- ggboxplot(sub_scres, x = trt_type[it], y = "sig_score",
@@ -567,6 +567,7 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	}
 
 }
+stop()
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
