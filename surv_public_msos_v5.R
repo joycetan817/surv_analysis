@@ -143,6 +143,9 @@ suppressMessages(library(survminer))
 suppressMessages(library(corrplot))
 suppressMessages(library(ggpubr))
 suppressMessages(library(Hmisc))
+suppressMessages(library(limma))
+suppressMessages(library(EnhancedVolcano))
+suppressMessages(library(DESeq2))
 # Personally prefer to having a independent section for all the parameters or variables
 # which may be tuned for different inputs and tasks
 
@@ -152,17 +155,19 @@ suppressMessages(library(Hmisc))
 #################################################################################
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
 work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
-db_name = "metabric"
-#db_name = "tcga_brca"
+#db_name = "metabric"
+db_name = "tcga_brca"
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+de_name = "diff_expr"
+expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
 selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
 sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with signatures and corresponding results
+de_dir = paste(work_dir, de_name, "/", sep = "") # generate the directory with signatures and corresponding results
 
 
 if (db_name == "metabric") {
@@ -199,13 +204,14 @@ gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression
 corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "Tex sig.score"
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
+diff_expr = TRUE
 
 
 
 #################################################################################
 # Work for experiment records
 
-res_folder = "sym25_tex_LumA+B_therapy_no_hormone_EGA" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_LumA+B_tcga_raw" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -219,7 +225,8 @@ cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
-expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
+#expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
+expr = readRDS("primary_tumor_cleaned_merged_raw_counts.rds") # When perform differential analysis in tcga
 #expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 #expr = readRDS("tcga_portal_data_expr_v3.RDS")
@@ -247,11 +254,10 @@ if (FALSE) {
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
 #clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
 #clin_info = read_excel("07212019_tcga_clinical_info.xlsx", sheet = 2) # early stages for mamma (stage I and II)
-clin_info = read_excel("metabric_clin_proli_info.xlsx", sheet = 1)
-
+#clin_info = read_excel("metabric_clin_proli_info.xlsx", sheet = 1)
+clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
 #clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
 #clin_info = readRDS("07212019_tcga_clinical_info.RDS")
-
 #clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
 # saveRDS(clin_info, file = paste(data_dir, "07212019_tcga_clinical_info.RDS", sep = ""))
 print(Sys.time()-st)
@@ -615,7 +621,7 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	}
 
 }
-stop()
+
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
@@ -634,6 +640,92 @@ if (length(qcov) == 2) {
 	sub_scres = sub_scres[sub_scres$group != "Medium",]
 	}
 if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
+
+if (diff_expr) {cat("Perform differential analysis in subgroup\n")
+	if (db_name = "metabric") { cat("Run limma in subgroup\n")
+ 		sgroup<-sub_scres[,c("pid", "group")]
+		expr<-expr [, rownames(sgroup)]
+		all(rownames(sgroup) == colnames(expr))
+		group <- factor (sgroup$group)
+		design <- model.matrix(~ sgroup$group)
+		colnames(design) = levels(group)
+		fit = lmFit(expr, design)
+		fit <- eBayes(fit)
+		restable<-topTable(fit, number = nrow(fit))
+
+		gene_annot<- annot[, c("Probe_Id", "ILMN_Gene", "Definition")]
+		rownames(gene_annot)<-gene_annot$Probe_Id
+		print_res = merge(gene_annot, restable, by =0)
+		csv_file = paste(de_dir, db_name, sg_name, pamst, "limma.csv", sep = "_")
+		write.csv(print_res, file = csv_file)
+
+		tiff_file = paste(sde_dir, db_name, sg_name, pamst, "volplot_limma.tiff", sep = "_")
+		tiff(tiff_file, res = 120, width = 9, heigh = 6, units = 'in')
+		EnhancedVolcano(print_res, 
+			x = 'logFC', y = 'adj.P.Val',
+			lab = print_res$ILMN_Gene,
+			pCutoff = 10e-6, FCcutoff = 2, # default
+			xlim = c(-8, 8), 
+			title = "High versus Low",
+			transcriptPointSize = 1.5,
+			transcriptLabSize = 3.,
+			xlab = bquote(~Log[2]~ 'fold change'),
+			ylab = bquote(~-Log[10]~adjusted~italic(P)),
+			cutoffLineWidth = 0.8,
+			cutoffLineCol = 'black',
+			legend=c('NS','Log (base 2) fold-change','Adjusted P value\n (FDR)',
+				'Significantly \ndifferentially \nexpressed genes'),
+			legendPosition = 'right')
+		gar = dev.off()}
+
+ 	if (db_name = "tcga_brca") { cat("Run deseq2 in subgroup\n")
+ 		coldata<-sub_scres[,c("pid", "group")]
+		expr<- expr[, rownames(coldata)]
+		all(rownames(coldata) == colnames(expr))
+		expr<-as.matrix(expr)
+		coldata$group <- factor(coldata$group)
+		dds <- DESeqDataSetFromMatrix(countData = expr, colData = coldata, design = ~ group)
+		dds
+
+		keep_genes <- rowSums(counts(dds)) >= 10
+		dds <- dds[keep_genes,]
+		dds
+
+		dds$group <- factor(dds$group, levels = c("Low","High"))
+		st = Sys.time()
+		dds <- DESeq(dds)
+		print(Sys.time()-st)
+
+		res <- results(dds, contrast=c("group", "High", "Low"))
+		res
+
+		temp_res <- res
+		temp_res$Probe_Id <- rownames(temp_res)
+		gene_annot <- annot[, c("Probe_Id", "ILMN_Gene")]
+		merge_res <- merge(gene_annot, as(temp_res,"data.frame"), by="Probe_Id")
+
+		csv_file = paste(de_dir, db_name, sg_name, pamst, "deseq2.csv", sep = "_")
+		write.csv(merge_res, file = csv_file)
+
+		tiff_file = paste(de_dir, db_name, sg_name, pamst, "volplot_deseq2.tiff", sep = "_")
+		tiff(tiff_file, res=240, width=9, heigh=9, units='in')
+		EnhancedVolcano(merge_res, lab = merge_res$ILMN_Gene,
+			x = 'log2FoldChange', y = 'padj',
+			xlab = bquote(~Log[2]~ 'fold change'),
+			ylab = bquote(~-Log[10]~adjusted~italic(P)),
+			title = "High vs Low",
+			pCutoff = 0.05, FCcutoff = 1.0,
+			legend=c('NS','Log2 FC','Adjusted p-value', 'Adjusted p-value & Log2 FC'),
+			legendPosition = 'bottom',
+			transcriptPointSize = 4.0,
+			transcriptLabSize = 5.0)
+		gar <- dev.off()
+
+
+		#?odds <- estimateSizeFactors(dds)
+		#?norm_data <- counts(odds, normalized=TRUE)
+		
+ 	}
 
 
 #################################################################################
