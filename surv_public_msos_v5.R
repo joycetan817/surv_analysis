@@ -161,8 +161,8 @@ db_name = "metabric"
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
 de_name = "diff_expr"
-expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = FALSE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
+expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -204,14 +204,14 @@ gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression
 corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "Tex sig.score"
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
-diff_expr = TRUE
+diff_expr = FALSE
 
 
 
 #################################################################################
 # Work for experiment records
 
-res_folder = "sym25_tex_LumA+B_IDC_cbpt_diff" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_LumA+B_IDC_ega" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -225,10 +225,10 @@ cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
-#expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
+expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
 #expr = readRDS("primary_tumor_cleaned_merged_raw_counts.rds") # When perform differential analysis in tcga
 #expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
-expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
+#expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 #expr = readRDS("tcga_portal_data_expr_v3.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
@@ -470,8 +470,8 @@ if (gp_gene != "") {
 cat("Generate histogram plot of signature score\n")
 title = paste(db_name, sg_name, pamst, sep = "  ")
 sc_hist = ggplot(sub_scres, aes(x=gpvalue)) + 
-	geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
-	#geom_histogram(color="darkblue", fill="lightblue") +
+	#geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
+	geom_histogram(color="darkblue", fill="lightblue") +
 	labs(title=title, x=hist_xlab, y = "Count") + 
 	theme_classic()
 sc_hist_bld = ggplot_build(sc_hist)
@@ -513,6 +513,7 @@ sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_z
 		 x = zero_x[1], y = max(sc_hist_data$count), size = 4.5, colour = "black")
 # hist_tif = paste(sign_dir, db_name, sg_name, pamst, ".tiff", sep = "_")
 ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in", device = "tiff")
+
 
 #################################################################################
 ## Assign survival data
@@ -637,7 +638,7 @@ if (length(qcov) == 2) {
 	sub_scres = sub_scres[sub_scres$group != "Medium",]
 	}
 if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
-
+stop()
 #differential expression analysis in high/low Tex group
 if (diff_expr) {cat("Perform differential analysis in subgroup\n")
 	if (db_name == "metabric") { cat("Run limma in subgroup\n") #limma package for microarray data
@@ -645,6 +646,7 @@ if (diff_expr) {cat("Perform differential analysis in subgroup\n")
 		expr<-expr [, rownames(sgroup)] # columns of the count matrix and the rows of the column data in the same order
 		all(rownames(sgroup) == colnames(expr))
 		group <- factor (sgroup$group)
+		#sgroup$group <- relevel(sgroup$group, ref = "Low")?
 		design <- model.matrix(~ sgroup$group)
 		fit = lmFit(expr, design)
 		fit <- eBayes(fit)
@@ -680,15 +682,16 @@ if (diff_expr) {cat("Perform differential analysis in subgroup\n")
 			lab = print_res$ILMN_Gene,
 			pCutoff = 0.05, FCcutoff = 1.0, 
 			xlim = c(-8, 8), 
-			title = "High versus Low",
+			title = "High vs Low",
 			transcriptPointSize = 1.5,
 			transcriptLabSize = 3.0,
 			xlab = bquote(~Log[2]~ 'fold change'),
 			ylab = bquote(~-Log[10]~adjusted~italic(P)),
 			cutoffLineWidth = 0.8,
 			cutoffLineCol = 'black',
-			legend=c('NS','Log (base 2) fold-change','Adjusted P value\n (FDR)',
-				'Significantly \ndifferentially \nexpressed genes'),
+			#legend=c('NS','Log (base 2) fold-change','Adjusted P value\n (FDR)',
+				#'Significantly \ndifferentially \nexpressed genes'),
+			legend=c('NS','Log2 FC','Adjusted p-value', 'Adjusted p-value & Log2 FC'),
 			legendPosition = 'bottom')
 		tiff(tiff_file, res = 300, width = 9, heigh = 9, units = 'in')
 		print(evplot)
