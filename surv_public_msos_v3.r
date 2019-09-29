@@ -152,13 +152,13 @@ suppressMessages(library(Hmisc))
 #################################################################################
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
 work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
-#db_name = "metabric"
-db_name = "tcga_brca"
+db_name = "metabric"
+#db_name = "tcga_brca"
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = TRUE # NOTE: ilid/tcga require this as TRUE; median as FALSE
+expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = FALSE # NOTE: ilid/tcga require this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -200,7 +200,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_LumA_B_IDC_tcga" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_LumA_B_IDC_cbpt" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -215,8 +215,8 @@ st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
 #expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
-expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
-#expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
+#expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
+expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 #expr = readRDS("tcga_portal_data_expr_v2.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
@@ -240,10 +240,10 @@ if (FALSE) {
 	q(save = "no")
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
-#clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
+clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
 #clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
 #clin_info = read_excel("07212019_tcga_clinical_info_early.xlsx", sheet = 1)
-clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
+#clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
 #clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
 # saveRDS(clin_info, file = paste(data_dir, "07212019_tcga_clinical_info.RDS", sep = ""))
 print(Sys.time()-st)
@@ -474,7 +474,7 @@ sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_z
 						   "\n Percentile:", format(right_zero_count[1]/dim(sub_scres)[1]*100, digit = 4)), 
 		 x = zero_x[1], y = max(sc_hist_data$count), size = 4.5, colour = "black")
 # hist_tif = paste(sign_dir, db_name, sg_name, pamst, ".tiff", sep = "_")
-ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in")
+ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in", device = "tiff")
 
 #################################################################################
 ## Assign survival data
@@ -567,7 +567,7 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	}
 
 }
-stop()
+
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
