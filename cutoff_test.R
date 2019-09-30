@@ -607,7 +607,11 @@ for (cut in 1: length(qcut)) {
 	sub_scres[sub_scres$gpvalue > qcov[[1]],"group"] = "High"
 	fit <- survfit(Surv(ost, ose) ~ group, data=sub_scres)
 	pval_cut[cut, 1]=-log10(surv_pvalue(fit)[2])
+	write.csv(pval_cut, file= "")
+	tiff(" .tiff", res=300, width=12, heigh=9, units='in')
 	plot_pval<-pval_cut[1:901, "adj"]
-	barplot(plot_pval)
+	barplot(plot_pval, main = "CD8A_survival_pval", ylab = "padj")
+	dev.off()
+
 }
 
