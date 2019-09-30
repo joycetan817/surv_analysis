@@ -576,12 +576,12 @@ if(trt_type != "") {
 }
 
 ## Add all the other factors
-if(db_name != "tcga_brca") {
+
 sub_scres[sub_clin$pid,"age"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"]
 sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
 sub_scres[sub_clin$pid,"tsize"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"]
 sub_scres[sub_clin$pid,"node_stat"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"]
-}
+
 
 
 # print(head(sub_scres))

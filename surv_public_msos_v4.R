@@ -184,7 +184,7 @@ sign_file = "tex_signature_colt_c2.txt" # Tex signature version2
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
 
 
-histype = "IDC" # histology type: IDC/DCIS
+histype = "" # histology type: IDC/DCIS
 pamst = c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 stageoi = 0 #c(3,4) # Stage of interest: 1/2/3/4
@@ -204,7 +204,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 #################################################################################
 # Work for experiment records
 
-res_folder = "sym25_tex_v5_LumA_B_IDC_tcga" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_LumA_B_tcga_raw_count" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -219,7 +219,8 @@ st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
 #expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
-expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
+expr = readRDS("primary_tumor_cleaned_merged_raw_counts.rds") # When perform differential analysis in tcga
+#expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 #expr = readRDS("tcga_portal_data_expr_v3.RDS")
 print(Sys.time()-st)
@@ -245,7 +246,6 @@ if (FALSE) {
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
 #clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
-#clin_info = read_excel("07212019_tcga_clinical_info.xlsx", sheet = 2) # early stages for mamma (stage I and II)
 #clin_info = read_excel("merge_clin_info_size_stage.xlsx", sheet = 1)
 clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
 #clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
@@ -458,7 +458,8 @@ if (gp_gene != "") {
 cat("Generate histogram plot of signature score\n")
 title = paste(db_name, sg_name, pamst, sep = "  ")
 sc_hist = ggplot(sub_scres, aes(x=gpvalue)) + 
-	geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
+	#geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
+	geom_histogram(color="darkblue", fill="lightblue") +
 	labs(title=title, x=hist_xlab, y = "Count") + 
 	theme_classic()
 sc_hist_bld = ggplot_build(sc_hist)
@@ -530,11 +531,11 @@ sub_scres$ose <- as.numeric(sub_scres$ose)
 sub_scres[sub_clin$pid,"rfst"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"TOR"]
 sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
 #For stage/grade information
-sub_scres[sub_clin$pid,"stage"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Stage"]
-sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
-sub_scres[sub_clin$pid,"Tstage"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Size_Tstage"]
-sub_scres[sub_clin$pid,"mutation"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"mutation_count"]
-sub_scres$mutation <- as.numeric(sub_scres$mutation)
+#sub_scres[sub_clin$pid,"stage"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Stage"]
+#sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
+#sub_scres[sub_clin$pid,"Tstage"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Size_Tstage"]
+#sub_scres[sub_clin$pid,"mutation"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"mutation_count"]
+#sub_scres$mutation <- as.numeric(sub_scres$mutation)
 
 
 
@@ -560,12 +561,12 @@ if(trt_type != "") {
 }
 
 ## Add all the other factors
-if(db_name != "tcga_brca") {
+
 sub_scres[sub_clin$pid,"age"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"]
 sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
 sub_scres[sub_clin$pid,"tsize"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"]
 sub_scres[sub_clin$pid,"node_stat"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"]
-}
+
 
 
 # print(head(sub_scres))
@@ -605,7 +606,7 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	}
 
 }
-stop()
+
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
