@@ -53,11 +53,11 @@ suppressMessages(library(survminer))
 
 
 work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
-#db_name = "metabric"
-db_name = "tcga_brca"
+db_name = "metabric"
+#db_name = "tcga_brca"
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 pval_name = "cut_pval"
-expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
 selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 
 if (db_name == "metabric") {
@@ -82,19 +82,20 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 histype = "IDC" # histology type: IDC/DCIS
 pamst = c("LumA","LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 hrtype = "" #c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
-gp_gene = "CD274"
-gptype = "CD274" #"Tex sig.score"
+gp_gene = ""
+gptype = "Tex sig.score"
 qcut <- seq(from = 0.05, to = 0.95, by = 0.001) # 
-pval = "cox_reg" #  p value get from "surv" or "cox_reg"
+gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
+pval = "surv" #  p value get from "surv" or "cox_reg"
 
-res_folder = "CD274_cox_LumA_B_IDC_tcga" # NOTE: Please change this folder name to identify your experiments
+res_folder = "Tex_sym_surv_LumA_B_IDC_ega" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(pval_dir, res_folder, "/", sep ="")
 dir.create(file.path(pval_dir, res_folder), showWarnings = FALSE)
 
 cat("Loading expression data...\n")
 st = Sys.time()
-expr = readRDS(paste(data_dir, expr_file, sep = ""))
-#expr = readRDS("metabric_expr_ilid.RDS")
+#expr = readRDS(paste(data_dir, expr_file, sep = ""))
+expr = readRDS("metabric_expr_ilid.RDS")
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 #expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
 print(Sys.time()-st)
@@ -102,8 +103,8 @@ expr<-as.data.frame(expr)
 
 cat("Loading clinical data...\n")
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
-#clin_info = readRDS("merge_clin_info_v3.RDS")
-clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
+clin_info = readRDS("merge_clin_info_v3.RDS")
+#clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
 
 
 
@@ -274,31 +275,40 @@ sub_scres$node_stat = as.numeric(sub_clin$Lymph.Nodes.Positive[match(sub_scres$p
 
 #################################################################################
 
-
 pval_cut<-as.data.frame(matrix(ncol=1, nrow=length(qcut)))
 colnames(pval_cut)[1]= "padj"
 rownames(pval_cut) = qcut
 
 cat("Generate survival/cox pvalue from all cutoffs\n")
+
 for (cut in 1: length(qcut)) {
-	qcov = quantile(sub_scres$gpvalue, c(1-qcut[cut])) #one quantile cutoff
-	sub_scres$group = "Medium"
-	sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
-	sub_scres[sub_scres$gpvalue > qcov[[1]],"group"] = "High"
+	temp_scres <- sub_scres
+	if (gp_app == "oneqcut") {
+		qcov = quantile(temp_scres$gpvalue, c(1-qcut[cut])) # one quantile cutoff
+		temp_scres$group = "Medium"
+		temp_scres[temp_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
+		temp_scres[temp_scres$gpvalue > qcov[[1]],"group"] = "High"
+	}
+	if (gp_app == "symqcut") {
+		qcov = quantile(temp_scres$gpvalue, c(qcut[cut], 1-qcut[cut])) # symmetric quantile cutoff
+		temp_scres$group = "Medium"
+		temp_scres[temp_scres$gpvalue <= qcov[[1]],"group"] = "Low"
+		temp_scres[temp_scres$gpvalue >= qcov[[2]],"group"] = "High"
+		temp_scres = temp_scres[temp_scres$group != "Medium",]
+	}
 	if (pval == "surv") {
-		fit <- survfit(Surv(ost, ose) ~ group, data=sub_scres)
+		fit <- survfit(Surv(ost, ose) ~ group, data=temp_scres)
 		pval_cut[cut, 1]=-log10(surv_pvalue(fit)[2])
 	} 
 	if (pval == "cox_reg") {
 		if(db_name == "tcga_brca") {
-			res.cox <- coxph(Surv(ost, ose) ~ group+age+grade+node_stat, data=sub_scres)
+			res.cox <- coxph(Surv(ost, ose) ~ group+age+grade+node_stat, data=temp_scres)
 			} else {
-			res.cox <- coxph(Surv(ost, ose) ~ group+age+grade+tsize+node_stat, data=sub_scres)
+			res.cox <- coxph(Surv(ost, ose) ~ group+age+grade+tsize+node_stat, data=temp_scres)
 			}
 		prescox = summary(res.cox)
 		pval_cut[cut, 1]=-log10(prescox$sctest["pvalue"])
 	}
-	
 }
 
 pval_csv = paste(res_dir, "cut_pval.csv")
