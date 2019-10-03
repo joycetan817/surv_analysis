@@ -90,11 +90,11 @@ cutoff_screen <- function (data, type, qcut, gp_app, gp_val) {
 	if( type == "cox_reg") {
 		c <- ggplot(pval_cut, aes(cutoff, log_score))
 		c <- c + geom_col() + labs(title = paste(gp_val, db_name, pamst), x ="cutoff", y = "log-rank test score") + coord_cartesian(xlim=c(0, 1)) + theme_classic()
+		c <- c + geom_vline(xintercept = pval_cut$cutoff[pval_cut$log_score == max(pval_cut$log_score)], size = 0.5, colour = "red",linetype = "dotdash")
 		ggsave(c, file = paste(res_dir, gp_val, "_logscore_barplot.tiff"),  dpi = 300, width = 9, height = 6, units = "in", device = "tiff")
 		
 		d <- ggplot(pval_cut, aes(cutoff, pval))
 		d <- d + geom_col() + labs(title = paste(gp_val, db_name, pamst), x ="cutoff", y = "adjust P value") + coord_cartesian(xlim=c(0, 1)) + theme_classic()
-		d <- d + geom_vline(xintercept = pval_cut$cutoff[pval_cut$log_score == max(pval_cut$log_score)], size = 0.5, colour = "red",linetype = "dotdash")
 		ggsave(d, file = paste(res_dir, gp_val, "_pval_barplot.tiff"),  dpi = 300, width = 9, height = 6, units = "in", device = "tiff")
 		
 	} else {
