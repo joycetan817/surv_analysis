@@ -94,12 +94,13 @@ cutoff_screen <- function (data, type, qcut, gp_app, gp_val) {
 		
 		d <- ggplot(pval_cut, aes(cutoff, pval))
 		d <- d + geom_col() + labs(title = paste(gp_val, db_name, pamst), x ="cutoff", y = "adjust P value") + coord_cartesian(xlim=c(0, 1)) + theme_classic()
+		d <- d + geom_vline(xintercept = pval_cut$cutoff[pval_cut$log_score == max(pval_cut$log_score)], size = 0.5, colour = "red",linetype = "dotdash")
 		ggsave(d, file = paste(res_dir, gp_val, "_pval_barplot.tiff"),  dpi = 300, width = 9, height = 6, units = "in", device = "tiff")
 		
 	} else {
 		c <- ggplot(pval_cut, aes(cutoff, pval)) 
 		c <- c + geom_col() + labs(title = paste(gp_val, db_name, pamst), x ="cutoff", y = "adjust P value") + coord_cartesian(xlim=c(0, 1)) + theme_classic()
-		#c <- c + geom_vline(xintercept = c(0.25, 0.75), size = 0.8, colour = "red",linetype = "dotdash")
+		c <- c + geom_vline(xintercept = pval_cut$cutoff[pval_cut$pval == max(pval_cut$pval)], size = 0.5, colour = "red",linetype = "dotdash")
 		ggsave(c, file = paste(res_dir, gp_val, "_pval_barplot.tiff"),  dpi = 300, width = 9, height = 6, units = "in", device = "tiff")
 	}
 	return(c) 
