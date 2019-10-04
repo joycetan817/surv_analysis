@@ -91,6 +91,8 @@ cutoff_screen <- function (data, type, qcut, gp_app, gp_val) {
 		c <- ggplot(pval_cut, aes(cutoff, log_score))
 		c <- c + geom_col() + labs(title = paste(gp_val, db_name, pamst), x ="cutoff", y = "log-rank test score") + coord_cartesian(xlim=c(0, 1)) + theme_classic()
 		c <- c + geom_vline(xintercept = pval_cut$cutoff[pval_cut$log_score == max(pval_cut$log_score)], size = 0.5, colour = "red",linetype = "dotdash")
+		max_cutoff <- pval_cut$cutoff[pval_cut$log_score == max(pval_cut$log_score)]
+		print (max_cutoff)
 		ggsave(c, file = paste(res_dir, gp_val, "_logscore_barplot.tiff"),  dpi = 300, width = 9, height = 6, units = "in", device = "tiff")
 		
 		d <- ggplot(pval_cut, aes(cutoff, pval))
@@ -101,6 +103,8 @@ cutoff_screen <- function (data, type, qcut, gp_app, gp_val) {
 		c <- ggplot(pval_cut, aes(cutoff, pval)) 
 		c <- c + geom_col() + labs(title = paste(gp_val, db_name, pamst), x ="cutoff", y = "adjust P value") + coord_cartesian(xlim=c(0, 1)) + theme_classic()
 		c <- c + geom_vline(xintercept = pval_cut$cutoff[pval_cut$pval == max(pval_cut$pval)], size = 0.5, colour = "red",linetype = "dotdash")
+		max_cutoff <- pval_cut$cutoff[pval_cut$pval == max(pval_cut$pval)]
+		print (max_cutoff)
 		ggsave(c, file = paste(res_dir, gp_val, "_pval_barplot.tiff"),  dpi = 300, width = 9, height = 6, units = "in", device = "tiff")
 	}
 	return(c) 
@@ -143,14 +147,15 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 histype = "IDC" # histology type: IDC/DCIS
 pamst = c("LumA","LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 hrtype = "" #c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
-gp_gene = "CD8A"
-gptype = "CD8A"
-qcut <- seq(from = 0.05, to = 0.95, by = 0.001) # screen cutoff range
-gp_app = "oneqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
-pval = "cox_reg" #  p value get from "surv" or "cox_reg"
-gp_val = c("sig_score", "CD8A")
+gp_gene = ""#"CD8A"
+gptype = "Tex sig.score"#"CD8A"
+qcut <- seq(from = 0.05, to = 0.5, by = 0.001) # screen cutoff range
+gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
+pval = "surv" #  p value get from "surv" or "cox_reg"
+gp_val = "sig_score"#c("sig_score", "CD8A")
+corr_plot = TRUE
 
-res_folder = "CD8A_cox_LumA_B_IDC_tcga_corr" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym_tex_surv_LumA_B_IDC_tcga_corr" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(pval_dir, res_folder, "/", sep ="")
 dir.create(file.path(pval_dir, res_folder), showWarnings = FALSE)
 
@@ -334,25 +339,27 @@ sub_scres$ose = as.numeric(sub_clin$DeathBreast[match(sub_scres$pid, sub_clin$pi
 #sub_scres$tsize = as.numeric(sub_clin$tumor_size[match(sub_scres$pid, sub_clin$pid)])
 #sub_scres$node_stat = as.numeric(sub_clin$Lymph.Nodes.Positive[match(sub_scres$pid, sub_clin$pid)])
 
-
+stop()
 #################################################################################
 
 tex_plot <- cutoff_screen(data = sub_scres, type = pval, qcut = qcut, gp_app = gp_app, gp_val = gp_val[1])
-gene_plot <- cutoff_screen(data = sub_scres, type = pval, qcut = qcut, gp_app = gp_app, gp_val = gp_val[2])
+#gene_plot <- cutoff_screen(data = sub_scres, type = pval, qcut = qcut, gp_app = gp_app, gp_val = gp_val[2])
 
-corr_plot <- ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.score
-           color = "gray40", shape = 19, size = 1.5,
-           add = "reg.line",  # Add regressin line
-           add.params = list(color = "black", fill = "lightgray"), # Customize reg. line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n")) + border() + theme(plot.margin = margin(0, 0, 0, 0, "pt"))
+if (corr_plot) {	
+	corr_plot <- ggscatter(sub_scres, x = gp_val[1], y = gp_val[2], # genes correlate with sig.score
+	           color = "gray40", shape = 19, size = 1.5,
+	           add = "reg.line",  # Add regressin line
+	           add.params = list(color = "black", fill = "lightgray"), # Customize reg. line
+	           conf.int = TRUE, # Add confidence interval
+	           cor.coef = TRUE, # Add correlation coefficient.
+	           cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n")) + border() + theme(plot.margin = margin(0, 0, 0, 0, "pt"))
 
-tex_plot<- tex_plot + clean_theme() +labs(title = NULL)
-gene_plot <- gene_plot + clean_theme () + labs(title = NULL) + rotate()
-combine_plot<-ggarrange(tex_plot, NULL, corr_plot, gene_plot, 
-          ncol = 2, nrow = 2,  align = "hv", 
-          widths = c(2, 1), heights = c(1, 2),
-          common.legend = TRUE)
-combine_tiff <- paste(res_dir, gp_val[1], gp_val[2], "combine_plot.tiff", sep = "_")
-ggsave(combine_plot, file = combine_tiff, dpi = 300, width = 11, height = 10, units = "in", device = "tiff" )
+	tex_plot<- tex_plot + clean_theme() +labs(title = NULL)
+	gene_plot <- gene_plot + clean_theme () + labs(title = NULL) + rotate()
+	combine_plot<-ggarrange(tex_plot, NULL, corr_plot, gene_plot, 
+	          ncol = 2, nrow = 2,  align = "hv", 
+	          widths = c(2, 1), heights = c(1, 2),
+	          common.legend = TRUE)
+	combine_tiff <- paste(res_dir, gp_val[1], gp_val[2], "combine_plot.tiff", sep = "_")
+	ggsave(combine_plot, file = combine_tiff, dpi = 300, width = 11, height = 10, units = "in", device = "tiff" )
+}
