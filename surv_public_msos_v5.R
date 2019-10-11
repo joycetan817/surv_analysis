@@ -197,27 +197,27 @@ stageoi = 0 #c(3,4) # Stage of interest: 1/2/3/4
 Tstageoi = 0 # T stage of interest : T1/T2/T3/T4
 hrtype = "" #c("N", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
-gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
-qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
-gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+gp_app = "oneqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
+qcut = 0.5 #0.25 # This is TOP quantile for oneqcut approach
+gp_gene = "CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "Tex sig.score"
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
-diff_expr = FALSE
+diff_expr = TRUE
 
 
 
 #################################################################################
 # Work for experiment records
 
-res_folder = "sym25_tex_LumA+B_IDC_ega" # NOTE: Please change this folder name to identify your experiments
+res_folder = "one50_CD8_LumA+B_IDC_ega" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
 ### !!!Please change the script_dir to the folder directory where this script is located
 script_dir = "~/GitHub/surv_analysis/"
-script_name = "surv_public_msos_v3.R"
+script_name = "surv_public_msos_v5.R"
 file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
 
 #################################################################################
@@ -470,8 +470,8 @@ if (gp_gene != "") {
 cat("Generate histogram plot of signature score\n")
 title = paste(db_name, sg_name, pamst, sep = "  ")
 sc_hist = ggplot(sub_scres, aes(x=gpvalue)) + 
-	#geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
-	geom_histogram(color="darkblue", fill="lightblue") +
+	geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
+	#geom_histogram(color="darkblue", fill="lightblue") +
 	labs(title=title, x=hist_xlab, y = "Count") + 
 	theme_classic()
 sc_hist_bld = ggplot_build(sc_hist)
@@ -619,7 +619,7 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	}
 
 }
-
+stop()
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
@@ -638,7 +638,7 @@ if (length(qcov) == 2) {
 	sub_scres = sub_scres[sub_scres$group != "Medium",]
 	}
 if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
-stop()
+
 #differential expression analysis in high/low Tex group
 if (diff_expr) {cat("Perform differential analysis in subgroup\n")
 	if (db_name == "metabric") { cat("Run limma in subgroup\n") #limma package for microarray data
@@ -651,6 +651,7 @@ if (diff_expr) {cat("Perform differential analysis in subgroup\n")
 		fit = lmFit(expr, design)
 		fit <- eBayes(fit)
 		restable<-topTable(fit, number = nrow(fit))
+		restable$logFC<- -(restable$logFC)
 
 		if (expr_type != "median") {
 			gene_annot<- annot[, c("Probe_Id", "ILMN_Gene", "Definition")]

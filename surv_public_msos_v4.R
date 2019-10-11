@@ -152,12 +152,12 @@ suppressMessages(library(Hmisc))
 #################################################################################
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
 work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
-#db_name = "metabric"
-db_name = "tcga_brca"
+db_name = "metabric"
+#db_name = "tcga_brca"
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
 selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
@@ -179,17 +179,19 @@ annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 }
 
 #sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
-sign_file = "tex_signature_colt_c2.txt" # Tex signature version2
+#sign_file = "tex_signature_colt_c2.txt" # Tex signature version2
+sign_file = "tex_signature_schumacher_v2.txt"
+#sign_file = "tex_signature_tirosh.txt"
 #sign_file = "tex_signature_colt_CD8_c4.txt" # Signature file Colt's Tex
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
 
 
-histype = "" # histology type: IDC/DCIS
-pamst = c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
+histype = "IDC" # histology type: IDC/DCIS
+pamst = c("LumA","LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 stageoi = 0 #c(3,4) # Stage of interest: 1/2/3/4
 Tstageoi = 0 # T stage of interest : T1/T2/T3/T4
-hrtype = "" #c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
+hrtype = ""#c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
@@ -204,13 +206,13 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 #################################################################################
 # Work for experiment records
 
-res_folder = "sym25_tex_LumA_B_tcga_raw_count" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_macherv2_LumA+B_IDC_ega" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
 ### !!!Please change the script_dir to the folder directory where this script is located
 script_dir = "~/GitHub/surv_analysis/"
-script_name = "surv_public_msos_v3.R"
+script_name = "surv_public_msos_v4.R"
 file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
 
 #################################################################################
@@ -218,8 +220,8 @@ cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
-#expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
-expr = readRDS("primary_tumor_cleaned_merged_raw_counts.rds") # When perform differential analysis in tcga
+expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
+#expr = readRDS("primary_tumor_cleaned_merged_raw_counts.rds") # When perform differential analysis in tcga
 #expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 #expr = readRDS("tcga_portal_data_expr_v3.RDS")
@@ -245,9 +247,9 @@ if (FALSE) {
 	q(save = "no")
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
-#clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
+clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
 #clin_info = read_excel("merge_clin_info_size_stage.xlsx", sheet = 1)
-clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
+#clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
 #clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
 #clin_info = readRDS("07212019_tcga_clinical_info.RDS")
 
@@ -458,8 +460,8 @@ if (gp_gene != "") {
 cat("Generate histogram plot of signature score\n")
 title = paste(db_name, sg_name, pamst, sep = "  ")
 sc_hist = ggplot(sub_scres, aes(x=gpvalue)) + 
-	#geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
-	geom_histogram(color="darkblue", fill="lightblue") +
+	geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
+	#geom_histogram(color="darkblue", fill="lightblue") +
 	labs(title=title, x=hist_xlab, y = "Count") + 
 	theme_classic()
 sc_hist_bld = ggplot_build(sc_hist)

@@ -33,7 +33,7 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 			     surv = fit$surv, upper = fit$upper, lower = fit$lower)
 	print(head(fit_df))
 	if (cox != "") {
-		if (sum(surv_data$status == 1)>0) {
+		#if (sum(surv_data$status == 1)>0) {
 		if (multicox) {
 			cat("\tMulti-variant Cox analysis with ", coxfac, "\n")
 			if (gdoi == 0) {
@@ -61,7 +61,7 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 		cox_rds <- paste(cox, lab, gptype, "_survana_cox_res.rds", sep="")
 		cat("\t\tP-value from logRank test: ", (prescox$sctest["pvalue"]), "\n") 
 		saveRDS(res.cox, file=cox_rds)
-		} else {cat("WARNING: NO event happened in this group!\n")}
+		#} else {cat("WARNING: NO event happened in this group!\n")}
 	}
 
 	if (csv != "") {
@@ -152,13 +152,13 @@ suppressMessages(library(Hmisc))
 #################################################################################
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
 work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
-db_name = "metabric"
-#db_name = "tcga_brca"
+#db_name = "metabric"
+db_name = "tcga_brca"
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = FALSE # NOTE: ilid/tcga require this as TRUE; median as FALSE
+expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = TRUE # NOTE: ilid/tcga require this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -189,7 +189,7 @@ gdoi = 0 #c(1) # Grade of interest: 1/2/3
 hrtype = "" # c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
-qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
+qcut = 0.371 #0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
@@ -200,7 +200,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_LumA_B_IDC_cbpt" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym37_tex_LumA_B_IDC_tcga" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -215,8 +215,8 @@ st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
 #expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
-#expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
-expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
+expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
+#expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 #expr = readRDS("tcga_portal_data_expr_v2.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
@@ -240,10 +240,10 @@ if (FALSE) {
 	q(save = "no")
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
-clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
+#clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
 #clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
 #clin_info = read_excel("07212019_tcga_clinical_info_early.xlsx", sheet = 1)
-#clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
+clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
 #clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
 # saveRDS(clin_info, file = paste(data_dir, "07212019_tcga_clinical_info.RDS", sep = ""))
 print(Sys.time()-st)
@@ -253,7 +253,7 @@ sub_clin = clin_info
 cat("\tOriginal patient number: ", dim(sub_clin)[1], "\n")
 if (histype != "") {
 	# For IDC
-	sub_clin = sub_clin[sub_clin[,"oncotree_code"] %in% histype,]
+	sub_clin = sub_clin[sub_clin[,"oncotree_code"] == histype,]
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 }
@@ -267,7 +267,7 @@ if (gdoi != 0) {
 }
 if (pamst != "") {
 	cat("Using PAM50 as molecular subtype classifier: ", pamst, "\n")
-	sub_clin = sub_clin[sub_clin[,"Pam50Subtype"] %in% pamst,]
+	sub_clin = subset(sub_clin, Pam50Subtype %in% pamst)
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 } else {
