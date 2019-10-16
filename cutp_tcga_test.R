@@ -14,12 +14,12 @@ db_name = "tcga_brca"
 sg_name = "ching_validation_res" # Colt's Tex sig from breast tissue c2
 #pval_name = "cut_pval"
 expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-cancer_type = "skcm" # "crc"
+cancer_type = "crc" # "crc"
 selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 
 
 
-gp_gene = "CD8A"
+gp_gene = "CD274"
 gptype = "Tex sig.score"#"CD8A"
 #pval = "surv" #  p value get from "surv" or "cox_reg"
 #gp_val = "sig_score"#c("sig_score", "CD8A")
@@ -61,12 +61,24 @@ gene_probe["pid",] = colnames(gene_probe)
 gene_expr <- as.data.frame(t(gene_probe))
 colnames(gene_expr)[1] = gp_gene
 gene_expr[,"gpvalue"] = gene_expr[,gp_gene]
+gene_expr$gpvalue <- as.character(gene_expr$gpvalue)
+gene_expr$gpvalue <- as.numeric(gene_expr$gpvalue)
+
 gene_expr$pid <- substr(gene_expr$pid, 1, 12)
 
 cat("Extract survival and treatment information from clinical data to subtype sig.score data frame\n")
-gene_expr$ost = clin_info$T[match(gene_expr$pid, clin_info$pid)]
-gene_expr$ose = clin_info$ose[match(gene_expr$pid, clin_info$pid)]
+gene_expr$ost = as.numeric(clin_info$T[match(gene_expr$pid, clin_info$pid)])
+gene_expr$ose = as.numeric(clin_info$ose[match(gene_expr$pid, clin_info$pid)])
 
 res.cox <- coxph(Surv(ost, ose) ~ gpvalue, data=gene_expr)
-res.cox<-cutp(res.cox)$gpvalue
+res.cox <- cutp(res.cox)$gpvalue
 data.table::setorder(res.cox, "gpvalue")
+cutp_res <-(res.cox)[,"U"]
+colnames(cutp_res)[1] = "test_score"
+cutp_res$cutoff <- as.numeric(rownames(cutp_res))
+g <- ggplot(cutp_res, aes(cutoff, test_score)) + geom_col() + labs(y = "log-rank test score") + theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank())
+g <- g + geom_vline(xintercept = cutp_res$cutoff[cutp_res$test_score == max(cutp_res$test_score)], size = 0.5, colour = "red",linetype = "dotdash")
+max_cutoff <- res.cox$gpvalue[res.cox$U == max(res.cox$U)]
+print(max_cutoff)
+stop()
+ggsave(g, file = "skcm_CD8A_cutp.tiff",  dpi = 300, width = 15, height = 6, units = "in", device = "tiff")
