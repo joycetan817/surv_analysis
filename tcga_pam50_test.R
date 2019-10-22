@@ -174,7 +174,8 @@ if (db_name == "metabric") {
 	annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
 }
 if (db_name == "tcga_brca") {
-expr_file = "tcga_brca_log2trans_fpkm_uq_v2.RDS" # Expression file
+expr_file = "tcga_brca_expr_rsem_log2trans.RDS"
+#expr_file = "tcga_brca_log2trans_fpkm_uq_v2.RDS" # Expression file
 clin_rds = "07212019_tcga_clinical_info.RDS" # clinical information with merged disease-free survival 
 annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 }
@@ -185,7 +186,7 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
 
 
-histype = "" # histology type: IDC/DCIS
+histype = "IDC" # histology type: IDC/DCIS
 pamst = c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 stageoi = 0 # Stage of interest: 1/2/3/4
@@ -204,7 +205,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_LumA_B_tcga_diff_v4" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_LumA_B_tcga_rsem" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -220,9 +221,10 @@ st = Sys.time()
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
 #expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
 #expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
+expr = readRDS("tcga_brca_rsem_expr_log2trans.RDS")
 #expr <- readRDS("primary_tumor_cleaned_merged_raw_counts.rds")
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
-expr = readRDS("tcga_portal_data_expr_v3.RDS")
+#expr = readRDS("tcga_portal_data_expr_v3.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 expr<-as.data.frame(expr)
@@ -248,7 +250,8 @@ if (FALSE) {
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
 #clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
-clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
+#clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
+clin_info = read_excel("1018_tcga_pam50_clin_rsem.xlsx", sheet = 1)
 #clin_info = read_excel("tcga_clin_pam50_stage.xlsx", sheet= 1 )
 #clin_info = readRDS("07212019_tcga_clinical_info.RDS")
 #clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
@@ -341,7 +344,7 @@ print(Sys.time()-st)
 cat("Load gene signature...\n")
 sign = read.table(paste(sign_dir, sign_file, sep = ""), header = TRUE, row.names = 1)
 
-
+stop()
 #################################################################################
 if (selfmap) {
 	## PREP for sig.score with MAPPPING

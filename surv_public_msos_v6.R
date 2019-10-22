@@ -191,7 +191,7 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 
 
 histype = "IDC" # histology type: IDC/DCIS
-pamst = "LumB"#c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
+pamst = c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 proli = ""  # proliferation group based on 19 genes
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 stageoi = 0 #c(3,4) # Stage of interest: 1/2/3/4
@@ -212,7 +212,7 @@ diff_expr = FALSE
 #################################################################################
 # Work for experiment records
 
-res_folder = "one25_CD8_LumB_IDC_ega" # NOTE: Please change this folder name to identify your experiments
+res_folder = "one25_CD8_LumAB_IDC_ega" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run

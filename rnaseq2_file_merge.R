@@ -22,12 +22,14 @@ data_dir = paste(tcga_dir, data_type, "/", sep ="")
 setwd(data_dir)
 files = list.files(path = data_dir)
 expr <- read.table(files[1], header = TRUE, row.names=1)
+#expr[,2:3]=NULL When merge raw counts
 colnames(expr)[1]=annot$sample_id[annot$file_name==files[1]]
 
 
 st = Sys.time()
 for (ii in 2:length(files)) {
 	expr_temp <- read.table(files[ii], header = TRUE, row.names=1)
+	#expr_temp[,2:3]=NULL
 	colnames(expr_temp)[1]=annot$sample_id[annot$file_name==files[ii]]
 	expr<-cbind(expr, expr_temp)
 }
