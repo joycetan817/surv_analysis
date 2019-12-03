@@ -216,7 +216,7 @@ group_num = "" # survival analysis using 3 or 4 grouping
 #################################################################################
 # Work for experiment records
 
-res_folder = "sym25_tex_TNBC_ega_testt" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_TNBC_ega_wg_plot_test" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
