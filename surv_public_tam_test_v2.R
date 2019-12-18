@@ -83,7 +83,7 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 				       risk.table = FALSE, ncensor.plot = FALSE)
 		#note_on_plot <- paste("nHigh = ", numh, "\t", "nLow = ", numl, "\t")
 		#survcurv$plot <- survcurv$plot + annotate("text", x=2000, y=0.1, label=note_on_plot, size = 6)
-		ggsave(surv_plot, plot = survcurv$plot, dpi = 120, width = 9, height = 6, units = 'in')
+		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
 	}
 }
 
@@ -136,7 +136,6 @@ singene_expr = function (gene, expr, annot, subdf, caltype = "mean", map = TRUE)
 # Please load all the packages at the very begining of each script
 cat("Loading genefu library...\n")
 suppressMessages(library(genefu))
-suppressMessages(library(dplyr))
 suppressMessages(library(readxl))
 suppressMessages(library(ggplot2))
 suppressMessages(library(survival))
@@ -144,9 +143,6 @@ suppressMessages(library(survminer))
 suppressMessages(library(corrplot))
 suppressMessages(library(ggpubr))
 suppressMessages(library(Hmisc))
-suppressMessages(library(limma))
-suppressMessages(library(EnhancedVolcano))
-suppressMessages(library(DESeq2))
 # Personally prefer to having a independent section for all the parameters or variables
 # which may be tuned for different inputs and tasks
 
@@ -159,16 +155,15 @@ work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
 db_name = "metabric"
 #db_name = "tcga_brca"
 #sg_name = "loi_trm" # Loi's TRM sig
-sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
+#sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-de_name = "diff_expr"
+sg_name = "tam_quick_test"
 expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
+selfmap = TRUE # NOTE: ilid/tcga require this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
 sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with signatures and corresponding results
-de_dir = paste(work_dir, de_name, "/", sep = "") # generate the directory with signatures and corresponding results
 
 
 if (db_name == "metabric") {
@@ -179,50 +174,52 @@ if (db_name == "metabric") {
 	annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
 }
 if (db_name == "tcga_brca") {
-expr_file = "skcm_rnaseqv2_expr_log2trans.RDS"
-clin_file = "tcga_clin_skcm_clean_v5.xlsx"
 #expr_file = "tcga_brca_log2trans_fpkm_uq_v2.RDS" # Expression file
-#clin_rds = "07212019_tcga_clinical_info.RDS" # clinical information with merged disease-free survival 
+expr_file = "tcga_brca_expr_rsem_log2trans.RDS"
+clin_rds = "07212019_tcga_clinical_info.RDS" # clinical information with merged disease-free survival 
 annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 }
 
 #sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
-#sign_file = "tex_signature_colt_v2.txt" # Tex signature version2
-sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
+#sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
+#sign_file = "oncotype_dx_v4.txt"
+#sign_file = "tex_sig_oncotype_dx.txt"
+#sign_file = "mesenchymal_marker.txt"
+sign_file = "pdl1_neg_tam_deseq2_v2.txt"
+#sign_file = "pdl1_pos_tam_deseq2_v2.txt"
+#sign_file = "tam_cluster0_marker_v2.txt"
+#sign_file = "tam_cluster1_marker_v2.txt"
+#sign_file = "tam_cluster2_3_merged_marker_v1.txt"
+#sign_file = "tam_cluster4_marker_v2.txt"
+#sign_file = "tam_cluster5_marker_v2.txt"
+
 
 
 histype = "IDC" # histology type: IDC/DCIS
-pamst = ""#c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
-proli = ""  # proliferation group based on 19 genes
+pamst = "" #"LumA"#c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
-stageoi = 0 #c(3,4) # Stage of interest: 1/2/3/4
-Tstageoi = 0 # T stage of interest : T1/T2/T3/T4
 hrtype = c("P", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
-gp_app = "oneqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
+gp_app = "oneqcut" # "symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
-corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
-gptype = "Tex sig.score"
+corr_gene = ""#c("CD8A", "CD3G", "PTPRC") # Genes need to be correlated with signature scores
+gptype = "PD-L1- TAM sig.score"
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
-diff_expr = FALSE
-strata = 2 # use one or two markers to stratify survival curve
-group_num = 4 # survival analysis using 3 or 4 grouping
 
 
 
 #################################################################################
 # Work for experiment records
-
-res_folder = "one25_CD8_tex_ER+_ega" # NOTE: Please change this folder name to identify your experiments
+res_folder = "one25_FOXP3_CD8_PDL1-_TAM_ER+_IDC_cbpt" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
 ### !!!Please change the script_dir to the folder directory where this script is located
 script_dir = "~/GitHub/surv_analysis/"
-script_name = "surv_public_msos_v6.R"
+script_name = "surv_public_tam_test_v2.R"
 file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
 
 #################################################################################
@@ -231,14 +228,13 @@ st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
 expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
-#expr = readRDS("primary_tumor_cleaned_merged_raw_counts.rds") # When perform differential analysis in tcga
 #expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
-#expr = readRDS("tcga_portal_data_expr_v3.RDS")
+#expr = readRDS("tcga_portal_data_expr_v2.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 expr<-as.data.frame(expr)
-colnames(expr) <- substr(colnames(expr), 1,12)
+
 cat("Loading clinical data...\n")
 st = Sys.time()
 # print(head(clin_info))
@@ -256,58 +252,38 @@ if (FALSE) {
 	cat("Save the clinical information to ", rds_file, "\n")
 	q(save = "no")
 }
-#clin_info = read_excel(paste(data_dir, clin_file, sep = ""), sheet = 1)
+#clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
+#clin_info = read_excel("1018_tcga_pam50_clin_rsem.xlsx", sheet = 1)
 clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
-#clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
 #clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
-#clin_info = readRDS("07212019_tcga_clinical_info.RDS")
+#clin_info = read_excel("07212019_tcga_clinical_info_early.xlsx", sheet = 1)
+#clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
+#clin_info = read_excel("ega_clin_info_mole_sub.xlsx", sheet = 1)
 #clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
 # saveRDS(clin_info, file = paste(data_dir, "07212019_tcga_clinical_info.RDS", sep = ""))
 print(Sys.time()-st)
 
 cat("Start to filter by clinical info...\n")
 sub_clin = clin_info
-
 cat("\tOriginal patient number: ", dim(sub_clin)[1], "\n")
-if (histype !=  "") {
+if (histype != "") {
 	# For IDC
 	sub_clin = sub_clin[sub_clin[,"oncotree_code"] == histype,]
-	#sub_clin = sub_clin[sub_clin[,"Oncotree.Code"] %in% histype,]
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 }
+
 
 if (gdoi != 0) {
 	# print(head(sub_clin))
 	sub_clin = sub_clin[sub_clin[,"grade"] %in% gdoi,]
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
-
 }
-
-if (stageoi != 0) {
-	sub_clin = sub_clin[sub_clin[,"Stage"] %in% stageoi,]
-	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
-	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
-
-}
-
-if (Tstageoi != 0) {
-	sub_clin = subset(sub_clin, Size_Tstage %in% Tstageoi)
-	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
-	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
-
-}
-
-if (proli != "") {
-	sub_clin = subset(sub_clin, proli_group == proli)
-	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
-	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
-}
-
 if (pamst != "") {
 	cat("Using PAM50 as molecular subtype classifier: ", pamst, "\n")
-	sub_clin = subset(sub_clin, Pam50Subtype %in% pamst)
+	#sub_clin = subset(sub_clin, Pam50Subtype == pamst)
+	sub_clin = subset(sub_clin, Pam50Subtype == pamst)
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 } else {
@@ -347,7 +323,6 @@ if (pamst != "") {
 		cat("\t\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 	}
 }
-
 
 if (dim(sub_clin)[1] <= 3) {stop("TOO SMALL SAMPLE SIZE!!!")}
 
@@ -406,7 +381,6 @@ if (selfmap) {
 	sig_score <- sig.score(x=sssign, data=ssdata, annot=ssannot, do.mapping=TRUE, signed=TRUE, verbose=TRUE)
 	# print(head(sig_score$score))
 
-
 } else {
 	## PREP for sig.score WITHOUT MAPPPING
 	# data = [r:sample, c:gene]
@@ -428,15 +402,13 @@ if (selfmap) {
 	ol_gene = intersect(sign_gene, anno_gene)
 	unava_gene = setdiff(sign_gene, ol_gene)
 	cat("Unavailable",length(unava_gene) ," genes: ", unava_gene, "\n")
-	#sub_annot = ssannot[ssannot$Hugo_Symbol %in% sign_gene,]
-	sub_annot = ssannot[ssannot$Gene %in% sign_gene,]
+	sub_annot = ssannot[ssannot$Hugo_Symbol %in% sign_gene,]
 	cat("Available probe: ", dim(sub_annot)[1], "\n")
 	sssign = as.data.frame(matrix(ncol = 3, nrow = dim(sub_annot)[1])) # Initialize sig.score x
 	colnames(sssign) = c("probe", "EntrezGene.ID", "coefficient")
 	rownames(sssign) = rownames(sub_annot)
 	sssign$probe = rownames(sub_annot)
-	#sssign$EntrezGene.ID = sub_annot$Entrez_Gene_Id
-	sssign$EntrezGene.ID = sub_annot$Entrez_id
+	sssign$EntrezGene.ID = sub_annot$Entrez_Gene_Id
 
 	sssign$coefficient = sign[sssign$probe,"logfc"]
 	cat("Run sig.score in all patient samples\n")
@@ -463,7 +435,7 @@ sub_sigscore = sub_scres
 
 if (gp_gene != "") {
 	cat("Using ", gp_gene, " as the group criteria...\n")
-	sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres, caltype = "mean", map = selfmap)
+	sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres, map = selfmap)
 	sub_scres = sub_expr
 	sub_scres[,"gpvalue"] = sub_scres[,gp_gene]
 	hist_xlab = gp_gene
@@ -472,14 +444,12 @@ if (gp_gene != "") {
 	hist_xlab = "Signature Score"
 }
 
-
 #################################################################################
 ## Histogram for sig.score
 cat("Generate histogram plot of signature score\n")
 title = paste(db_name, sg_name, pamst, sep = "  ")
 sc_hist = ggplot(sub_scres, aes(x=gpvalue)) + 
 	geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
-	#geom_histogram(color="darkblue", fill="lightblue") +
 	labs(title=title, x=hist_xlab, y = "Count") + 
 	theme_classic()
 sc_hist_bld = ggplot_build(sc_hist)
@@ -522,7 +492,6 @@ sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_z
 # hist_tif = paste(sign_dir, db_name, sg_name, pamst, ".tiff", sep = "_")
 ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in", device = "tiff")
 
-
 #################################################################################
 ## Assign survival data
 cat("Extract survival and treatment information from clinical data to subtype sig.score data frame\n")
@@ -546,22 +515,10 @@ sub_clin = sub_clin[sub_clin$pid %in% sub_scres$pid,]
 
 # For overall survival
 sub_scres[sub_clin$pid,"ost"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"T"]
-sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathBreast"]
-#sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"ose"]
-sub_scres$ose <- as.numeric(sub_scres$ose)
+sub_scres[sub_clin$pid,"ose"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathBreast"])
 # For disease-free survival
 sub_scres[sub_clin$pid,"rfst"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"TOR"]
 sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
-#For stage/grade information
-#sub_scres[sub_clin$pid,"stage"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Stage"]
-#sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
-#sub_scres[sub_clin$pid,"Tstage"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Size_Tstage"]
-#sub_scres[sub_clin$pid,"mutation"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"mutation_count"]
-#sub_scres$mutation <- as.numeric(sub_scres$mutation)
-
-
-
-
 # For treatment type
 if(db_name != "tcga_brca") {
 	sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
@@ -583,18 +540,16 @@ if(trt_type != "") {
 }
 
 ## Add all the other factors
-
-sub_scres[sub_clin$pid,"age"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"]
-sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
-sub_scres[sub_clin$pid,"tsize"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"]
-sub_scres[sub_clin$pid,"node_stat"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"]
-
-
+sub_scres[sub_clin$pid,"age"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"])
+sub_scres[sub_clin$pid,"grade"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"])
+sub_scres[sub_clin$pid,"tsize"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"])
+sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"])
 
 # print(head(sub_scres))
 print(dim(sub_scres))
 # print(dim(sub_clin))
 # q(save = "no")
+
 #################################################################################
 # Add correlation gene expressions SEPERATIVELY
 if(corr_gene != "") { cat("Extract gene expression from expression data to subtype sig.score data frame for correlation...\n")
@@ -628,7 +583,65 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	}
 
 }
+
+gp_gene = "FOXP3"
+sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres, map = selfmap)
+sub_expr[20]<-sub_expr$FOXP3/sub_expr$CD8A
+colnames(sub_expr)[20]<-"FOXP3/CD8A"
+sub_scres<-sub_expr
+sub_scres[,"gpvalue"] = sub_scres[,"FOXP3/CD8A"]
+qcov = quantile(sub_scres$gpvalue, c(1-qcut))
+sub_scres$group = "Medium"
+	sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
+	sub_scres[sub_scres$gpvalue > qcov[[1]],"group"] = "High"
+
+sub_scres[,"FOXP3_CD8_group"] = sub_scres[,"group"]
+	sub_scres[,"gpvalue"] = sub_scres[,"sig_score"]
+	qcov = quantile(sub_scres$gpvalue, c(1-qcut))
+	sub_scres$group = "Medium"
+	sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
+	sub_scres[sub_scres$gpvalue > qcov[[1]],"group"] = "High"
+
+numhh <- sum(sub_scres$FOXP3_CD8_group =="High" & sub_scres$group == "High")
+numhl <- sum(sub_scres$FOXP3_CD8_group =="High" & sub_scres$group == "Low")
+numlh <- sum(sub_scres$FOXP3_CD8_group =="Low" & sub_scres$group == "High")
+numll <- sum(sub_scres$FOXP3_CD8_group =="Low" & sub_scres$group == "Low")
+
+fit <- survfit(Surv(ost, ose) ~ FOXP3_CD8_group+group, data=sub_scres)
+survcurv <- ggsurvplot(fit, data = sub_scres,
+                        xlim = c(0,11000), ylim = c(0.00, 1.00),
+                        pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
+                        conf.int = FALSE, conf.int.alpha = 0.2,
+                        xlab = "Time (days)", ylab = "Overall Survival", legend.title = "",
+                        legend.labs = c(paste("ImmusupphiTAMhi, n =",numhh), paste("ImmusupphiTAMlo, n =",numhl) ,paste("ImmusupploTAMhi, n =",numlh), paste("ImmusupploTAMlo, n =",numll)),
+                        #                                      surv.median.line = "hv",
+                        ggtheme = theme_classic(),
+                        palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
+                        font.x = c(14, "bold"), font.y = c(18, "bold"), 
+                        font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
+                        risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.25, 0.17))
+surv_plot <- paste(res_dir,"os_four_survana.tiff", sep="")
+ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
+
+fit <- survfit(Surv(rfst, rfse) ~ FOXP3_CD8_group+group, data=sub_scres)
+survcurv <- ggsurvplot(fit, data = sub_scres,
+				       xlim = c(0,11000), ylim = c(0.00, 1.00),
+				       pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
+				       conf.int = FALSE, conf.int.alpha = 0.2,
+				       xlab = "Time (days)", ylab = "Relapse-free Survival", legend.title = "",
+                        legend.labs = c(paste("ImmusupphiTAMhi, n =",numhh), paste("ImmusupphiTAMlo, n =",numhl) ,paste("ImmusupploTAMhi, n =",numlh), paste("ImmusupploTAMlo, n =",numll)),
+#                                      surv.median.line = "hv",
+				       ggtheme = theme_classic(),
+				       palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
+				       font.x = c(14, "bold"), font.y = c(18, "bold"), 
+				       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
+				       risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.25, 0.17))
+surv_plot <- paste(res_dir,"rfs_four_survana.tiff", sep="")
+ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
 stop()
+#sub_scres$CD8A <- sub_corr$CD8A[match(sub_scres$pid, rownames(sub_corr))]
+#sub_scres$CD3G <- sub_corr$CD3G[match(sub_scres$pid, rownames(sub_corr))]
+#sub_scres$PTPRC <- sub_corr$PTPRC[match(sub_scres$pid, rownames(sub_corr))]
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
@@ -648,225 +661,9 @@ if (length(qcov) == 2) {
 	}
 if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 
-if (strata == 2) {
-	sub_scres[,"CD8_group"] = sub_scres[,"group"]
-	sub_scres[,"gpvalue"] = sub_scres[,"sig_score"]
-	qcov = quantile(sub_scres$gpvalue, c(1-qcut))
-	sub_scres$group = "Medium"
-	sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
-	sub_scres[sub_scres$gpvalue > qcov[[1]],"group"] = "High"
-
-	if (group_num == 4) {
-		numhh <- sum(sub_scres$CD8_group =="High" & sub_scres$group == "High")
-		numhl <- sum(sub_scres$CD8_group =="High" & sub_scres$group == "Low")
-		numlh <- sum(sub_scres$CD8_group =="Low" & sub_scres$group == "High")
-		numll <- sum(sub_scres$CD8_group =="Low" & sub_scres$group == "Low")
-
-		fit <- survfit(Surv(ost, ose) ~ CD8_group+group, data=sub_scres)
-		survcurv <- ggsurvplot(fit, data = sub_scres,
-						       xlim = c(0,11000), ylim = c(0.00, 1.00),
-						       pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
-						       conf.int = FALSE, conf.int.alpha = 0.2,
-						       xlab = "Time (days)", ylab = "Overall Survival", legend.title = "",
-						       legend.labs = c(paste("CD8hiTexhi, n =",numhh), paste("CD8hiTexlo, n =",numhl) ,paste("CD8loTexhi, n =",numlh), paste("CD8loTexlo, n =",numll)),
-		#                                      surv.median.line = "hv",
-						       ggtheme = theme_classic(),
-						       palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
-						       font.x = c(14, "bold"), font.y = c(18, "bold"), 
-						       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
-						       risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
-		surv_plot <- paste(res_dir,"os_four_survana.tiff", sep="")
-		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
-		
-
-		fit <- survfit(Surv(rfst, rfse) ~ CD8_group+group, data=sub_scres)
-		survcurv <- ggsurvplot(fit, data = sub_scres,
-						       xlim = c(0,11000), ylim = c(0.00, 1.00),
-						       pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
-						       conf.int = FALSE, conf.int.alpha = 0.2,
-						       xlab = "Time (days)", ylab = "Relapse-free Survival", legend.title = "",
-						       legend.labs = c(paste("CD8hiTexhi, n =",numhh), paste("CD8hiTexlo, n =",numhl) ,paste("CD8loTexhi, n =",numlh), paste("CD8loTexlo, n =",numll)),
-		#                                      surv.median.line = "hv",
-						       ggtheme = theme_classic(),
-						       palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
-						       font.x = c(14, "bold"), font.y = c(18, "bold"), 
-						       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
-						       risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
-		surv_plot <- paste(res_dir,"rfs_four_survana.tiff", sep="")
-		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
-
-	}
-
-	if (group_num == 3) {
-		sub_scres$group[sub_scres$CD8_group == "Low"] = "Low"
-
-		numhh <- sum(sub_scres$CD8_group =="High" & sub_scres$group == "High")
-		numhl <- sum(sub_scres$CD8_group =="High" & sub_scres$group == "Low")
-		numl <- sum(sub_scres$CD8_group =="Low" & sub_scres$group == "Low")
-
-		fit <- survfit(Surv(ost, ose) ~ CD8_group+group, data=sub_scres)
-		survcurv <- ggsurvplot(fit, data = sub_scres,
-						       xlim = c(0,10000), ylim = c(0.00, 1.00),
-						       pval = TRUE, pval.size = 6, pval.coord = c(7500, 0.17),
-						       conf.int = FALSE, conf.int.alpha = 0.2,
-						       xlab = "Time (days)", ylab = "Overall Survival", #Relapse-free Survival, 
-						       legend.title = "LumA_IDC",
-						       legend.labs = c(paste("CD8hiTexhi, n =",numhh), paste("CD8hiTexlo, n =",numhl) ,paste("CD8lo, n =",numl)),
-		#                                      surv.median.line = "hv",
-						       ggtheme = theme_classic(),
-						       #palette = c("#E7B800", "#2E9FDF"), 
-						       font.x = c(14, "bold"), font.y = c(18, "bold"), 
-						       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
-						       risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.3, 0.25))
-		surv_plot <- paste(res_dir,"os_three_survana.tiff", sep="")
-		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
-
-		fit <- survfit(Surv(rfst, rfse) ~ CD8_group+group, data=sub_scres)
-		survcurv <- ggsurvplot(fit, data = sub_scres,
-						       xlim = c(0,10000), ylim = c(0.00, 1.00),
-						       pval = TRUE, pval.size = 6, pval.coord = c(7500, 0.17),
-						       conf.int = FALSE, conf.int.alpha = 0.2,
-						       xlab = "Time (days)", ylab = "Relapse-free Survival", #Relapse-free Survival, 
-						       legend.title = "TNBC_IDC",
-						       legend.labs = c(paste("CD8hiTexhi, n =",numhh), paste("CD8hiTexlo, n =",numhl) ,paste("CD8lo, n =",numl)),
-		#                                      surv.median.line = "hv",
-						       ggtheme = theme_classic(),
-						       #palette = c("#E7B800", "#2E9FDF"), 
-						       font.x = c(14, "bold"), font.y = c(18, "bold"), 
-						       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
-						       risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.3, 0.25))
-		surv_plot <- paste(res_dir,"rfs_three_survana.tiff", sep="")
-		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
-
-	}
-}
-stop()
-#differential expression analysis in high/low Tex group
-if (diff_expr) {cat("Perform differential analysis in subgroup\n")
-	if (db_name == "metabric") { cat("Run limma in subgroup\n") #limma package for microarray data
- 		sgroup<-sub_scres[,c("pid", "group")]
-		expr<-expr [, rownames(sgroup)] # columns of the count matrix and the rows of the column data in the same order
-		all(rownames(sgroup) == colnames(expr))
-		group <- factor (sgroup$group)
-		#sgroup$group <- relevel(sgroup$group, ref = "Low")?
-		design <- model.matrix(~ sgroup$group)
-		fit = lmFit(expr, design)
-		fit <- eBayes(fit)
-		restable<-topTable(fit, number = nrow(fit))
-		restable$logFC<- -(restable$logFC)
-
-		if (expr_type != "median") {
-			gene_annot<- annot[, c("Probe_Id", "ILMN_Gene", "Definition")]
-			rownames(gene_annot)<-gene_annot$Probe_Id
-			print_res = merge(gene_annot, restable, by =0)
-			} else { 
-			print_res <- restable
-			print_res$ILMN_Gene <- rownames(print_res)
-		}
-
-		cat("Filter the genes with altered expression in high/low group\n")
-		print_res$high_up<-0
- 		print_res$high_down<-0
-		print_res$low_up<-0
-		print_res$low_down<-0
-
-		print_res$high_up[print_res$logFC >= 1 & print_res$adj.P.Val < 0.05] = 1
-		print_res$high_down[print_res$logFC <= -1 & print_res$adj.P.Val < 0.05] = 1
-		print_res$low_up[print_res$logFC <= -1 & print_res$adj.P.Val < 0.05] = 1
-		print_res$low_down[print_res$logFCe >= 1 & print_res$adj.P.Val < 0.05] = 1
-
-		csv_file = paste(de_dir, res_folder, "limma.csv", sep = "_")
-		write.csv(print_res, file = csv_file)
-
-		cat("Generate volcano plots...\n")
-		tiff_file = paste(de_dir, res_folder, "volplot_limma.tiff", sep = "_")
-		evplot <- EnhancedVolcano(print_res, 
-			x = 'logFC', y = 'adj.P.Val',
-			lab = print_res$ILMN_Gene,
-			pCutoff = 0.05, FCcutoff = 1.0, 
-			xlim = c(-8, 8), 
-			title = "High vs Low",
-			transcriptPointSize = 1.5,
-			transcriptLabSize = 3.0,
-			xlab = bquote(~Log[2]~ 'fold change'),
-			ylab = bquote(~-Log[10]~adjusted~italic(P)),
-			cutoffLineWidth = 0.8,
-			cutoffLineCol = 'black',
-			#legend=c('NS','Log (base 2) fold-change','Adjusted P value\n (FDR)',
-				#'Significantly \ndifferentially \nexpressed genes'),
-			legend=c('NS','Log2 FC','Adjusted p-value', 'Adjusted p-value & Log2 FC'),
-			legendPosition = 'bottom')
-		tiff(tiff_file, res = 300, width = 9, heigh = 9, units = 'in')
-		print(evplot)
-		gar = dev.off()
-	}
-
- 	if (db_name == "tcga_brca") { cat("Run deseq2 in subgroup\n") # Deseq2 package for RNA seq data
- 		coldata<-sub_scres[,c("pid", "group")]
-		expr<- expr[, rownames(coldata)] # columns of the count matrix and the rows of the column data in the same order
-		all(rownames(coldata) == colnames(expr)) 
-		expr<-as.matrix(expr)
-		coldata$group <- factor(coldata$group)
-		dds <- DESeqDataSetFromMatrix(countData = expr, colData = coldata, design = ~ group)
-		dds
-
-		keep_genes <- rowSums(counts(dds)) >= 10
-		dds <- dds[keep_genes,]
-		dds
-
-		dds$group <- factor(dds$group, levels = c("Low","High"))
-		
-		cat("Start to run DESeq2...\n")
-		st = Sys.time()
-		dds <- DESeq(dds)
-		print(Sys.time()-st)
-
-		res <- results(dds, contrast=c("group", "High", "Low"))
-		res
-
-		temp_res <- res
-		temp_res$Probe_Id <- rownames(temp_res)
-		gene_annot <- annot[, c("Probe_Id", "ILMN_Gene")]
-		merge_res <- merge(gene_annot, as(temp_res,"data.frame"), by="Probe_Id")
-
-		cat("Filter the genes with altered expression in high/low group\n")
-		merge_res$high_up<-0
- 		merge_res$high_down<-0
-		merge_res$low_up<-0
-		merge_res$low_down<-0
-
-		merge_res$high_up[merge_res$log2FoldChange >= 1 & merge_res$padj < 0.05] = 1
-		merge_res$high_down[merge_res$log2FoldChange <= -1 & merge_res$padj < 0.05] = 1
-		merge_res$low_up[merge_res$log2FoldChange <= -1 & merge_res$padj < 0.05] = 1
-		merge_res$low_down[merge_res$log2FoldChange >= 1 & merge_res$padj < 0.05] = 1
-
-		csv_file = paste(de_dir, res_folder, "deseq2.csv", sep = "_")
-		write.csv(merge_res, file = csv_file)
-
-		cat("Generate volcano plots...\n")
-		tiff_file = paste(de_dir, res_folder, "volplot_deseq2.tiff", sep = "_")
-		evplot <- EnhancedVolcano(merge_res, lab = merge_res$ILMN_Gene,
-			x = 'log2FoldChange', y = 'padj',
-			xlab = bquote(~Log[2]~ 'fold change'),
-			ylab = bquote(~-Log[10]~adjusted~italic(P)),
-			title = "High vs Low",
-			pCutoff = 0.05, FCcutoff = 1.0,
-			legend=c('NS','Log2 FC','Adjusted p-value', 'Adjusted p-value & Log2 FC'),
-			legendPosition = 'bottom',
-			transcriptPointSize = 1.5,
-			transcriptLabSize = 3.0)
-		tiff(tiff_file, res=300, width=9, heigh=9, units='in')
-		print(evplot)
-		gar <- dev.off()
-	}
-}
-
 #################################################################################
-if (strata == 1) {
-	survana(data = sub_scres, type = "os", plot = res_dir, gptype = gptype, 
+survana(data = sub_scres, type = "os", plot = res_dir, gptype = gptype, 
 	cox = res_dir, multicox = TRUE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)
-	if (db_name != "tcga_brca") {
-	survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = gptype, 
-		cox = res_dir, coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
-	}
-}
+if (db_name != "tcga_brca") {
+survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = gptype, 
+	cox = res_dir, coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)}

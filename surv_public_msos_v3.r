@@ -70,20 +70,20 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 	if (plot != "") {
 		surv_plot <- paste(plot, lab, gptype, "_survana_curves.tiff", sep="")
 		survcurv <- ggsurvplot(fit, data = surv_data,
-				       xlim = c(0,10000), ylim = c(0.00, 1.00),
-				       pval = TRUE, pval.size = 6, pval.coord = c(0, 0.2),
-				       conf.int = TRUE, conf.int.alpha = 0.2,
-				       xlab = "Time (days)", ylab = lab, legend.title = gptype,
-				       legend.labs = c("High", "Low"),
+				       xlim = c(0,11000), ylim = c(0.00, 1.00),
+				       pval = TRUE, pval.size = 6, pval.coord = c(7500, 0.1),
+				       conf.int = FALSE, conf.int.alpha = 0.2,
+				       xlab = "Time (days)", ylab = lab, legend.title = "",
+				       legend.labs = c(paste("High, n =", numh), paste("Low, n =", numl)), legend = c(0.15,0.15),
 #                                      surv.median.line = "hv",
 				       ggtheme = theme_classic(),
-				       palette = c("#E7B800", "#2E9FDF"), 
+				       palette = c("#D15466", "#0A9CC7"), 
 				       font.x = c(14, "bold"), font.y = c(18, "bold"), 
-				       font.tickslab = c(16, "plain"), font.legend = c(18, "bold"),
+				       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
 				       risk.table = FALSE, ncensor.plot = FALSE)
-		note_on_plot <- paste("nHigh = ", numh, "\t", "nLow = ", numl, "\t")
-		survcurv$plot <- survcurv$plot + annotate("text", x=2000, y=0.1, label=note_on_plot, size = 6)
-		ggsave(surv_plot, plot = survcurv$plot, dpi = 120, width = 9, height = 6, units = 'in')
+		#note_on_plot <- paste("nHigh = ", numh, "\t", "nLow = ", numl, "\t")
+		#survcurv$plot <- survcurv$plot + annotate("text", x=2000, y=0.1, label=note_on_plot, size = 6)
+		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
 	}
 }
 
@@ -182,18 +182,20 @@ annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 #sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
 sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
-
+#sign_file = "oncotype_dx_v6.txt"
+#sign_file = "tex_sig_oncotype_dx.txt"
+#sign_file = "CD8Tcell_marker.txt"
 
 histype = "IDC" # histology type: IDC/DCIS
-pamst = c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
+pamst = "" #"LumA"#c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
-hrtype = ""#c("P", "-", "N") # N: Negative, P: Positive, "-": DON'T CARE
+hrtype = c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
-gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
+gp_app = "symqcut" # "symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
-gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+gp_gene = "CD24" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
-corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
+corr_gene = ""#c("CD8A", "CD3G", "PTPRC") # Genes need to be correlated with signature scores
 gptype = "Tex sig.score"
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
 
@@ -201,7 +203,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_LumA+B_IDC_ega_pam50" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_CD24_TNBC_IDC_ega" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -242,11 +244,11 @@ if (FALSE) {
 }
 #clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
 #clin_info = read_excel("1018_tcga_pam50_clin_rsem.xlsx", sheet = 1)
-#clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
+clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
 #clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
-#clin_info = read_excel("07212019_tcga_clinical_info_early.xlsx", sheet = 1)
+#clin_info = read_excel("07212019_tcga_clinical_info.xlsx", sheet = 1)
 #clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
-clin_info = read_excel("ega_clin_info_mole_sub.xlsx", sheet = 1)
+#clin_info = read_excel("ega_clin_info_mole_sub.xlsx", sheet = 1)
 #clin_info = as.data.frame(read_excel(paste(data_dir, clin_rds, sep = "")))
 # saveRDS(clin_info, file = paste(data_dir, "07212019_tcga_clinical_info.RDS", sep = ""))
 print(Sys.time()-st)
@@ -271,7 +273,7 @@ if (gdoi != 0) {
 if (pamst != "") {
 	cat("Using PAM50 as molecular subtype classifier: ", pamst, "\n")
 	#sub_clin = subset(sub_clin, Pam50Subtype == pamst)
-	sub_clin = subset(sub_clin, pam50 %in% pamst)
+	sub_clin = subset(sub_clin, Pam50Subtype == pamst)
 	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 } else {
@@ -528,10 +530,16 @@ if(trt_type != "") {
 }
 
 ## Add all the other factors
+#sub_scres[sub_clin$pid,"age"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"])
+#sub_scres[sub_clin$pid,"grade"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"])
+#sub_scres[sub_clin$pid,"tsize"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"])
+#sub_scres[sub_clin$pid,"node_stat"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"])
+
 sub_scres[sub_clin$pid,"age"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"]
 sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
 sub_scres[sub_clin$pid,"tsize"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"]
 sub_scres[sub_clin$pid,"node_stat"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"]
+
 
 # print(head(sub_scres))
 print(dim(sub_scres))
@@ -572,6 +580,9 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 
 }
 
+#sub_scres$CD8A <- sub_corr$CD8A[match(sub_scres$pid, rownames(sub_corr))]
+#sub_scres$CD3G <- sub_corr$CD3G[match(sub_scres$pid, rownames(sub_corr))]
+#sub_scres$PTPRC <- sub_corr$PTPRC[match(sub_scres$pid, rownames(sub_corr))]
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
