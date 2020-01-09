@@ -202,7 +202,7 @@ hrtype = c("P", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "oneqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
-gp_gene = "CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+gp_gene = "TCF7" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "Tex sig.score"
@@ -216,7 +216,7 @@ group_num = 4 # survival analysis using 3 or 4 grouping
 #################################################################################
 # Work for experiment records
 
-res_folder = "one25_CD8_tex_ER+_ega" # NOTE: Please change this folder name to identify your experiments
+res_folder = "one25_TCF1_tex_ER+_ega" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
