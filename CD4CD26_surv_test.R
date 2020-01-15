@@ -155,7 +155,7 @@ work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
 db_name = "metabric"
 #db_name = "tcga_brca"
 #sg_name = "loi_trm" # Loi's TRM sig
-sg_name = "CD4CD26" # Colt's Tex sig from breast tissue c2
+sg_name = "CD26_test" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
 expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
 selfmap = TRUE # NOTE: ilid/tcga require this as TRUE; median as FALSE
@@ -181,7 +181,8 @@ annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 
 #sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
 #sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
-sign_file = "cluster2_t_pca9_15_ER_raw_v1"
+#sign_file = "cluster0_t_pca9_15_ER_raw_v1.txt"
+sign_file = "CD4CD26_all_c5_v1.txt"
 #sign_file = "tumor_ln_imputated_tl_v1.txt"
 #sign_file = "tumor_ln_normal_pbmc_abc_v1.txt"
 #sign_file = "tumor_ln_normal_pbmc_raw_v1.txt"
@@ -207,13 +208,13 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_crc_melanoma_TNBC_IDC_ega" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_CD26_c5_ER_IDC_ega" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
 ### !!!Please change the script_dir to the folder directory where this script is located
 script_dir = "~/GitHub/surv_analysis/"
-script_name = "surv_tex_final_test.R"
+script_name = "CD4CD26_surv_test.R"
 file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
 
 #################################################################################
