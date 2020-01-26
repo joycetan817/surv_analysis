@@ -62,6 +62,15 @@ ggsave(g, file = "pam50_tex_score_IDC_cbpt_comp.tiff", width = 8, height = 6, dp
 #HR
 ggsave(g, file = "HR_tex_score_IDC_cbpt_comp.tiff", width = 3.5, height = 6, dpi= 300, units = "in", device = "tiff")
 
+ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.score
+          color = "group",fill="group",shape = 21, size = 2, xlim=c(6.5,10.3),palette = c("#D15466","#E69F00","#0A9CC7","#999999"),
+          add = "reg.line",  # Add regressin line
+          add.params = list(color = "gray", fill = "lightgray"), # Customize reg. line
+          conf.int = TRUE, # Add confidence interval
+          cor.coef = TRUE, # Add correlation coefficient.
+          cor.coeff.args = list(method = "pearson", size = 4.5,label.x = 6.5, label.sep = "\n")
+)
+
 g<-ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.score
           color = "darkgray", fill="darkgray",shape = 21, size = 2, xlim=c(6.5,10.3),
           add = "reg.line",  # Add regressin line
