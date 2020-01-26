@@ -1,0 +1,75 @@
+ sub_scres$pam50[sub_scres$pam50=="Normal"]="Normal-like"
+sub_scres$pam50<-factor(sub_scres$pam50, levels = c("LumA", "LumB", "Basal", "Her2","Normal-like"))
+g<-ggplot(sub_scres, aes(pam50, sig_score, fill=pam50))+geom_boxplot()
+g<-g+theme_classic()+theme(legend.position="none", axis.title.x=element_blank(),
+	axis.ticks.x = element_blank(),axis.text=element_text(size=14, color = "#000000"),
+    axis.title=element_text(size=14))+ylab("Tex sig.score")
+g<-g+stat_compare_means(method = "anova", label.x = 4, label.y = 11, size = 5)
+g<-g+scale_fill_manual(values=c("#D15466", "#0A9CC7","#999999", "#E69F00", "skyblue2"))
+j+scale_fill_manual(values=wes_palette(n=5, name="Darjeeling1"))
+
+
+
+ggsave(g, file = "pam50_tex_score_IDC_cbpt_comp.tiff", width = 7, height = 6, dpi= 300, units = "in", device = "tiff")
+
+h+theme(
+axis.title.x=element_blank(),
+axis.ticks.x = element_blank()) +ylab("Tex sig.score")
+ g<-c+theme(axis.text=element_text(size=14, color = "#000000"),
+    axis.title=element_text(size=14))
+
+a+stat_compare_means(method = "anova")
+a+stat_compare_means(method = "anova", label.x = 4, label.y = 11, size = 5)
+
+> a<-h+theme(
++     axis.title.x=element_blank(),
++     axis.ticks.x = element_blank(),)
+
+j+scale_fill_manual(values=c("#D15466", "#0A9CC7","#999999", "#E69F00", "skyblue2"))
+
+j+scale_fill_manual(values=wes_palette(n=5, name="Darjeeling1"))
+
+
+
+sub_scres$ER<-sub_clin$ER.Expr[match(sub_scres$pid, sub_clin$pid)]
+sub_scres$PR<-sub_clin$PR.Expr[match(sub_scres$pid, sub_clin$pid)]
+sub_scres$Her2<-sub_clin$Her2.Expr[match(sub_scres$pid, sub_clin$pid)]
+
+sub_scres$HR=0
+
+sub_scres$HR[sub_scres$ER=="+"]="ER+"
+sub_scres$HR[sub_scres$ER=="-" & sub_scres$PR == "-" & sub_scres$Her2 == "-"]="TNBC"
+sub_scres<-subset(sub_scres, HR != 0)
+g<-ggplot(sub_scres, aes(HR, sig_score, fill=HR))+geom_boxplot()
+g<-g+theme_classic()+theme(legend.position="none", axis.title.x=element_blank(),
+	axis.ticks.x = element_blank(),axis.text=element_text(size=14, color = "#000000"),
+    axis.title=element_text(size=14))+ylab("Tex sig.score")
+g<-g+stat_compare_means(method = "t.test", label.x = 1.5, label.y = 11, size = 5)
+g<-g+scale_fill_manual(values=c("#D15466", "#0A9CC7"))
+ggsave(g, file = "HR_tex_score_IDC_cbpt_comp.tiff", width = 3.5, height = 6, dpi= 300, units = "in", device = "tiff")
+
+
+sub_scres<-subset(sub_scres, grade!="NA")
+g<-ggplot(sub_scres, aes(grade, sig_score, fill=grade))+geom_boxplot()
+
+g<-ggboxplot(sub_scres, x = "grade", y = "sig_score",
+           color = "pam50", palette = c("#D15466", "#0A9CC7","#999999", "#E69F00", "skyblue2"),
+           add = "jitter") + stat_compare_means(method = "anova", label.x = 4, label.y = 11, size = 5)
+
+ggsave(g, file = "pam50_tex_score_IDC_cbpt_comp.tiff", width = 8, height = 6, dpi= 300, units = "in", device = "tiff")
+
+
+#HR
+ggsave(g, file = "HR_tex_score_IDC_cbpt_comp.tiff", width = 3.5, height = 6, dpi= 300, units = "in", device = "tiff")
+
+g<-ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.score
+          color = "darkgray", fill="darkgray",shape = 21, size = 2, xlim=c(6.5,10.3),
+          add = "reg.line",  # Add regressin line
+          add.params = list(color = "black", fill = "lightgray"), # Customize reg. line
+          conf.int = TRUE, # Add confidence interval
+          cor.coef = TRUE, # Add correlation coefficient.
+          cor.coeff.args = list(method = "pearson", size = 4.5,label.x = 6.5, label.sep = "\n")
+)
+
+g<-g+theme_classic()+theme(axis.text=element_text(size=14, color = "#000000"),
+                           axis.title=element_text(size=14))+xlab("Tex sig.score")+ylab("CD8A")
