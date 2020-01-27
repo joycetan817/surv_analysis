@@ -40,10 +40,14 @@ sub_scres$HR=0
 sub_scres$HR[sub_scres$ER=="+"]="ER+"
 sub_scres$HR[sub_scres$ER=="-" & sub_scres$PR == "-" & sub_scres$Her2 == "-"]="TNBC"
 sub_scres<-subset(sub_scres, HR != 0)
+
+ggboxplot(sub_scres, x = "HR", y = "mutation",
+          color = "HR", palette = c("#0A9CC7","#D15466"),
+          add = "jitter")
 g<-ggplot(sub_scres, aes(HR, sig_score, fill=HR))+geom_boxplot()
 g<-g+theme_classic()+theme(legend.position="none", axis.title.x=element_blank(),
-	axis.ticks.x = element_blank(),axis.text=element_text(size=14, color = "#000000"),
-    axis.title=element_text(size=14))+ylab("Tex sig.score")
+                           axis.ticks.x = element_blank(),axis.text=element_text(size=14, color = "#000000"),
+                           axis.title=element_text(size=14))+ylab("Mutation burden")
 g<-g+stat_compare_means(method = "t.test", label.x = 1.5, label.y = 11, size = 5)
 g<-g+scale_fill_manual(values=c("#D15466", "#0A9CC7"))
 ggsave(g, file = "HR_tex_score_IDC_cbpt_comp.tiff", width = 3.5, height = 6, dpi= 300, units = "in", device = "tiff")
@@ -62,15 +66,66 @@ ggsave(g, file = "pam50_tex_score_IDC_cbpt_comp.tiff", width = 8, height = 6, dp
 #HR
 ggsave(g, file = "HR_tex_score_IDC_cbpt_comp.tiff", width = 3.5, height = 6, dpi= 300, units = "in", device = "tiff")
 
-ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.score
-          color = "group",fill="group",shape = 21, size = 2, xlim=c(6.5,10.3),palette = c("#D15466","#E69F00","#0A9CC7","#999999"),
+
+
+
+###################ER correlation#############
+
+sub_scres$tex_group<-sub_scres$group
+sub_scres$group[sub_scres$CD8_group=="High" & sub_scres$tex_group == "High"]="CD8hiTexhi"
+sub_scres$group[sub_scres$CD8_group=="High" & sub_scres$tex_group == "Low"]="CD8hiTexlo"
+sub_scres$group[sub_scres$CD8_group=="Low" & sub_scres$tex_group == "Low"]="CD8loTexlo"
+sub_scres$group[sub_scres$CD8_group=="Low" & sub_scres$tex_group == "High"]="CD8loTexhi"
+
+
+
+g<-ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.score
+          color = "group",fill="group",shape = "group", size = 2, xlim=c(6.65,10.3),ylim=c(4.5,11), palette = c("#D15466","#D15466","#0A9CC7","#0A9CC7"),
           add = "reg.line",  # Add regressin line
-          add.params = list(color = "gray", fill = "lightgray"), # Customize reg. line
+          add.params = list(color = "darkgray", fill = "lightgray"), # Customize reg. line
           conf.int = TRUE, # Add confidence interval
           cor.coef = TRUE, # Add correlation coefficient.
-          cor.coeff.args = list(method = "pearson", size = 4.5,label.x = 6.5, label.sep = "\n")
-)
+          cor.coeff.args = list(method = "pearson", size = 3.5,label.x = 6.65,label.y = 10.75,label.sep = ", ")
+)+scale_shape_manual(values=c(21, 1, 21,1))
 
+
+
+g<-g+theme_classic()+theme(legend.position="top",legend.title = element_blank(),legend.text = element_text(colour="#000000", size=13),axis.text=element_text(size=14, color = "#000000"),axis.title=element_text(size=14))+xlab("Tex sig.score")
+
+
+qcov = quantile(sub_scres$gpvalue, c(1-qcut)) 
+tex_score<-qcov
+sub_scres$gpvalue<-sub_scres$CD8A
+qcov = quantile(sub_scres$gpvalue, c(1-qcut)) 
+
+
+g<-g+geom_hline(yintercept=qcov, color = "lightgray", size=1)+geom_vline(xintercept=tex_score, color="lightgray", size=1)
+c<-g+annotate("text", x = 8.25, y = 10.75, label = "125 (11%)", color="#D15466")+annotate("text", x = 8.25, y = 4.85, label = "698 (64%)", color="#0A9CC7")+annotate("text", x = 10, y = 10.75, label = "150 (14%)", color="#D15466")+annotate("text", x = 10, y = 4.85, label = "125 (11%)", color="#0A9CC7")
+
+ggsave(c, file = "CD8A_tex_cor_IDC_cbpt_test.tiff", width = 8, height = 7, dpi= 300, units = "in", device = "tiff")
+
+###################TNBC correlation#############
+g<-ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.score
+          color = "group",fill="group",shape = "group", size = 2, xlim=c(7,10.75),ylim=c(5,11), palette = c("#D15466","#D15466","#0A9CC7","#0A9CC7"), 
+          add = "reg.line",  # Add regressin line
+          add.params = list(color = "darkgray", fill = "lightgray"), # Customize reg. line
+          conf.int = TRUE, # Add confidence interval
+          cor.coef = TRUE, # Add correlation coefficient.
+          cor.coeff.args = list(method = "pearson", size = 3.5,label.x = 7,label.y = 11,label.sep = ", ")
+)+scale_shape_manual(values=c(21, 1, 21,1))
+
+g<-g+theme_classic()+theme(legend.position="top",legend.title = element_blank(),legend.text = element_text(colour="#000000", size=13),axis.text=element_text(size=14, color = "#000000"),axis.title=element_text(size=14))+xlab("Tex sig.score")
+
+
+
+g<-g+geom_hline(yintercept=qcov, color = "lightgray", size=1)+geom_vline(xintercept=tex_score, color="lightgray", size=1)
+
+c<-g+annotate("text", x = 8.5, y = 11, label = "32 (12%)", color="#D15466")+annotate("text", x = 8.5, y = 5.25, label = "170 (63%)", color="#0A9CC7")+annotate("text", x = 10.5, y = 11, label = "35 (13%)", color="#D15466")+annotate("text", x = 10.5, y = 5.25, label = "32 (12%)", color="#0A9CC7")
+
+ggsave(c, file = "CD8A_tex_cor_TNBC_IDC_cbpt_test.tiff", width = 8, height = 7, dpi= 300, units = "in", device = "tiff")
+
+
+test$sig_score<- rescale(test$sig_score, to = c(0, 10), from = range(test$sig_score, na.rm = TRUE, finite = TRUE))
 g<-ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.score
           color = "darkgray", fill="darkgray",shape = 21, size = 2, xlim=c(6.5,10.3),
           add = "reg.line",  # Add regressin line
@@ -82,3 +137,42 @@ g<-ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.
 
 g<-g+theme_classic()+theme(axis.text=element_text(size=14, color = "#000000"),
                            axis.title=element_text(size=14))+xlab("Tex sig.score")+ylab("CD8A")
+
+
+ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.score
+          color = "group",fill="group",shape = "group", size = 2, xlim=c(6.65,10.3),ylim=c(4.5,11), palette = c("#D15466","#D15466","#0A9CC7","#0A9CC7"), 
+          add = "reg.line",  # Add regressin line
+          add.params = list(color = "black", fill = "lightgray"), # Customize reg. line
+          conf.int = TRUE, # Add confidence interval
+          cor.coef = TRUE, # Add correlation coefficient.
+          cor.coeff.args = list(method = "pearson", size = 3.5,label.x = 6.65,label.y = 10.5,label.sep = ", ")
+)+scale_shape_manual(values=c(21, 1, 21,1))
+
+
+
+#######################PDL1/PD1 in four groups#################
+sub_scres$group<-factor(sub_scres$group, levels = c("CD8hiTexhi", "CD8hiTexlo", "CD8loTexhi", "CD8loTexlo"))
+gp_gene = "PDCD1" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres, caltype = "mean", map = selfmap)
+
+sub_scres$PD1<-sub_expr$PDCD1[match(sub_scres$pid, sub_expr$pid)]
+gp_gene = "CD274" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres, caltype = "mean", map = selfmap)
+sub_scres$PDL1<-sub_expr$CD274[match(sub_scres$pid, sub_expr$pid)]
+
+g<-ggboxplot(sub_scres, x = "group", y = "PD1",
+          color = "group", palette = c("#D15466","#D15466","#0A9CC7","#0A9CC7"),
+          add = "jitter", shape = "group")+scale_shape_manual(values=c(21, 1, 21,1))
+
+g<-g+theme_classic()+theme(legend.position="none", axis.title.x=element_blank(),
+	axis.ticks.x = element_blank(),axis.text=element_text(size=14, color = "#000000"),
+    axis.title=element_text(size=14))+ylab("Tex sig.score")
+g<-g+stat_compare_means(method = "anova", label.x = 4, label.y = 11, size = 5)
+
+ggplot(sData,aes(x=factor(MARKET_NAME),y=DST_UNITS,fill=factor(PROGRAM_STATUS,c("PRE-PROGRAM","POST-PROGRAM")))) +
+  geom_boxplot(outlier.shape=NA) + 
+  geom_point(position=position_jitterdodge())
+
+ggplot(sub_scres,aes(x=group,y=PD1,color=group,shape=group)) +
+    geom_boxplot(outlier.shape=NA) + 
+    geom_point(position=position_jitterdodge())+scale_shape_manual(values=c(21, 1, 21,1))+scale_color_manual(values=c("#D15466","#D15466","#0A9CC7","#0A9CC7"))
