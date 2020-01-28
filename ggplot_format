@@ -176,3 +176,24 @@ ggplot(sData,aes(x=factor(MARKET_NAME),y=DST_UNITS,fill=factor(PROGRAM_STATUS,c(
 ggplot(sub_scres,aes(x=group,y=PD1,color=group,shape=group)) +
     geom_boxplot(outlier.shape=NA) + 
     geom_point(position=position_jitterdodge())+scale_shape_manual(values=c(21, 1, 21,1))+scale_color_manual(values=c("#D15466","#D15466","#0A9CC7","#0A9CC7"))
+
+g<-ggplot(sub_scres,aes(x=group,y=PD1,color=group,shape=group)) +
+    geom_boxplot(outlier.shape=NA) + 
+    geom_point(position=position_jitterdodge())+scale_shape_manual(values=c(16, 1, 16,1))+scale_color_manual(values=c("#D15466","#D15466","#0A9CC7","#0A9CC7"))
+
+g<-g+theme_classic()+theme(legend.position="none", axis.title.x=element_blank(),
+                           axis.ticks.x = element_blank(),axis.text=element_text(size=14, color = "#000000"),
+                           axis.title=element_text(size=14))+ylim(4.75,8)
+c<-g+stat_compare_means(method = "anova", label.x = 3.5, label.y = 7.8, size = 5)
+
+
+##################################PDL1
+
+g<-ggplot(sub_scres,aes(x=group,y=PD1,color=group,shape=group)) +
+    geom_boxplot(outlier.shape=NA) + 
+    geom_point(position=position_jitterdodge())+scale_shape_manual(values=c(16, 1, 16,1))+scale_color_manual(values=c("#D15466","#D15466","#0A9CC7","#0A9CC7"))
+
+g<-g+theme_classic()+theme(legend.position="none", axis.title.x=element_blank(),
+                           axis.ticks.x = element_blank(),axis.text=element_text(size=14, color = "#000000"),
+                           axis.title=element_text(size=14))+ylim(5, 6.5)
+c<-g+stat_compare_means(method = "anova", label.x = 3.5, label.y = 7.8, size = 5)
