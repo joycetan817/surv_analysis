@@ -161,14 +161,14 @@ db_name = "metabric"
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-de_name = "diff_expr"
-expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
+#de_name = "diff_expr"
+expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = FALSE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
 sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with signatures and corresponding results
-de_dir = paste(work_dir, de_name, "/", sep = "") # generate the directory with signatures and corresponding results
+#de_dir = paste(work_dir, de_name, "/", sep = "") # generate the directory with signatures and corresponding results
 
 
 if (db_name == "metabric") {
@@ -202,21 +202,24 @@ hrtype = c("P", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "oneqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
-gp_gene = "TCF7" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+gp_gene = "CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
-corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
+corr_by_group = TRUE # scatter correlation plot visualized by CD8/Tex group
+corr_gene = c("PDCD1", "CD274") #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
+corr_gene_plot = TRUE # check correlated genes expression in CD8/Tex group
 gptype = "Tex sig.score"
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
-diff_expr = FALSE
+diff_expr = FALSE # run differential analysis based on signature group
 strata = 2 # use one or two markers to stratify survival curve
 group_num = 4 # survival analysis using 3 or 4 grouping
+sig_by_grade = TRUE # check sig.score in different cancer grade
 
 
 
 #################################################################################
 # Work for experiment records
 
-res_folder = "one25_TCF1_tex_ER+_ega" # NOTE: Please change this folder name to identify your experiments
+res_folder = "one25_CD8A_tex_ER_cbpt_test" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -230,15 +233,15 @@ cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
 #expr = readRDS(paste(data_dir, expr_file, sep = ""))
-expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
+#expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
 #expr = readRDS("primary_tumor_cleaned_merged_raw_counts.rds") # When perform differential analysis in tcga
 #expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
-#expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
+expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 #expr = readRDS("tcga_portal_data_expr_v3.RDS")
 print(Sys.time()-st)
 # print(meta_expr[1:9,1:6]) # Check the input in terminal
 expr<-as.data.frame(expr)
-colnames(expr) <- substr(colnames(expr), 1,12)
+#colnames(expr) <- substr(colnames(expr), 1,12)
 cat("Loading clinical data...\n")
 st = Sys.time()
 # print(head(clin_info))
@@ -389,6 +392,7 @@ if (selfmap) {
 	unava_gene = setdiff(sign_gene, ol_gene)
 	cat("Unavailable",length(unava_gene) ," genes: ", unava_gene, "\n")
 	sub_annot = ssannot[ssannot$ILMN_Gene %in% sign_gene,]
+
 	cat("Available probe: ", dim(sub_annot)[1], "\n")
 	sssign = as.data.frame(matrix(ncol = 3, nrow = dim(sub_annot)[1])) # Initialize sig.score x
 	colnames(sssign) = c("probe", "EntrezGene.ID", "coefficient")
@@ -428,15 +432,15 @@ if (selfmap) {
 	ol_gene = intersect(sign_gene, anno_gene)
 	unava_gene = setdiff(sign_gene, ol_gene)
 	cat("Unavailable",length(unava_gene) ," genes: ", unava_gene, "\n")
-	#sub_annot = ssannot[ssannot$Hugo_Symbol %in% sign_gene,]
-	sub_annot = ssannot[ssannot$Gene %in% sign_gene,]
+	sub_annot = ssannot[ssannot$Hugo_Symbol %in% sign_gene,]
+	#sub_annot = ssannot[ssannot$Gene %in% sign_gene,]
 	cat("Available probe: ", dim(sub_annot)[1], "\n")
 	sssign = as.data.frame(matrix(ncol = 3, nrow = dim(sub_annot)[1])) # Initialize sig.score x
 	colnames(sssign) = c("probe", "EntrezGene.ID", "coefficient")
 	rownames(sssign) = rownames(sub_annot)
 	sssign$probe = rownames(sub_annot)
-	#sssign$EntrezGene.ID = sub_annot$Entrez_Gene_Id
-	sssign$EntrezGene.ID = sub_annot$Entrez_id
+	sssign$EntrezGene.ID = sub_annot$Entrez_Gene_Id
+	#sssign$EntrezGene.ID = sub_annot$Entrez_id
 
 	sssign$coefficient = sign[sssign$probe,"logfc"]
 	cat("Run sig.score in all patient samples\n")
@@ -556,8 +560,8 @@ sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
 #sub_scres[sub_clin$pid,"stage"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Stage"]
 #sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
 #sub_scres[sub_clin$pid,"Tstage"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Size_Tstage"]
-#sub_scres[sub_clin$pid,"mutation"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"mutation_count"]
-#sub_scres$mutation <- as.numeric(sub_scres$mutation)
+sub_scres[sub_clin$pid,"mutation"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"mutation_count"]
+sub_scres$mutation <- as.numeric(sub_scres$mutation)
 
 
 
@@ -585,7 +589,7 @@ if(trt_type != "") {
 ## Add all the other factors
 
 sub_scres[sub_clin$pid,"age"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"]
-sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
+sub_scres[sub_clin$pid,"grade"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"])
 sub_scres[sub_clin$pid,"tsize"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"]
 sub_scres[sub_clin$pid,"node_stat"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"]
 
@@ -616,19 +620,22 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 
     for (ig in 1:length(corr_gene)) { cat("Generate scatter plot of correlation between sig.score and", corr_gene[ig], "\n")
 		scat_cor<-ggscatter(sub_corr, x = "sig_score", y = corr_gene[ig], # genes correlate with sig.score
-		   color = "black", shape = 21, size = 2, 
+		   color = "darkgray", fill="darkgray",shape = 21, size = 2,
 		   add = "reg.line",  # Add regressin line
-		   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+		   add.params = list(color = "black", fill = "lightgray"), # Customize reg. line
 		   conf.int = TRUE, # Add confidence interval
 		   cor.coef = TRUE, # Add correlation coefficient.
-		   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
+		   cor.coeff.args = list(method = "pearson", label.sep = "\n")
 		   )
-		scat_tif = paste(res_dir, db_name, sg_name, pamst, corr_gene[ig], "corr_scat.tiff", sep = "_")
-		ggsave(scat_cor, file = scat_tif)
+		scat_cor <- scat_cor + theme_classic() + theme(axis.text=element_text(size=14, color = "#000000"),
+                           axis.title=element_text(size=14)) + xlab("Tex sig.score")
+		scat_tif = paste(res_dir, db_name, sg_name, pamst, corr_gene[ig], "corr_simp.tiff", sep = "_")
+		ggsave(scat_cor, file = scat_tif, width = 8, height = 7, dpi= 300, units = "in", device = "tiff")
 	}
 
 }
-stop()
+
+
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
@@ -695,6 +702,14 @@ if (strata == 2) {
 		surv_plot <- paste(res_dir,"rfs_four_survana.tiff", sep="")
 		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
 
+		sub_scres$tex_group<-sub_scres$group
+		sub_scres$group[sub_scres$CD8_group=="High" & sub_scres$tex_group == "High"]="CD8hiTexhi"
+		sub_scres$group[sub_scres$CD8_group=="High" & sub_scres$tex_group == "Low"]="CD8hiTexlo"
+		sub_scres$group[sub_scres$CD8_group=="Low" & sub_scres$tex_group == "Low"]="CD8loTexlo"
+		sub_scres$group[sub_scres$CD8_group=="Low" & sub_scres$tex_group == "High"]="CD8loTexhi"
+		sub_scres$group<-factor(sub_scres$group, levels = c("CD8hiTexhi", "CD8hiTexlo", "CD8loTexhi", "CD8loTexlo"))
+
+
 	}
 
 	if (group_num == 3) {
@@ -739,8 +754,79 @@ if (strata == 2) {
 		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
 
 	}
+
+	if (corr_by_group) {cat("Generate correlation scatter plot based on four CD8/Tex group\n")
+		g <- ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.score
+	          color = "group",fill="group",shape = "group", size = 2, 
+	          #xlim=c(6.65,10.3),ylim=c(4.5,11), 
+	          palette = c("#D15466","#D15466","#0A9CC7","#0A9CC7"),
+	          add = "reg.line",  # Add regressin line
+	          add.params = list(color = "darkgray", fill = "lightgray"), # Customize reg. line
+	          conf.int = TRUE, # Add confidence interval
+	          cor.coef = TRUE, # Add correlation coefficient.
+	          cor.coeff.args = list(method = "pearson", size = 3.5, #label.x = 6.65,label.y = 10.75,
+	          	label.sep = ", ")) + scale_shape_manual(values=c(21, 1, 21,1))
+		g <- g + theme_classic() +
+			 theme(legend.position="top",legend.title = element_blank(),
+			 	legend.text = element_text(colour="#000000", size=13),
+			 	axis.text=element_text(size=14, color = "#000000"),
+			 	axis.title=element_text(size=14))+xlab("Tex sig.score")
+
+		qcov = quantile(sub_scres$sig_score, c(1-qcut)) 
+		tex_score<-qcov
+		qcov = quantile(sub_scres$CD8A, c(1-qcut))
+		CD8A_score<-qcov 
+
+		###find one25 cutoff of CD8A and Tex
+		hhperc <- round(numhh/dim(sub_scres)[1]*100)
+		hlperc <- round(numhl/dim(sub_scres)[1]*100)
+		lhperc <- round(numlh/dim(sub_scres)[1]*100)
+		llperc <- round(numll/dim(sub_scres)[1]*100)
+
+		g <- g + geom_hline(yintercept=CD8A_score, color = "lightgray", size=1) + geom_vline(xintercept=tex_score, color="lightgray", size=1)
+		g <- g + annotate("text", x = 10, y = 10.75, label = paste(numhh, " (", hhperc, "%)", sep = ""), color="#D15466") +
+			 annotate("text", x = 10, y = 4.85, label = paste(numhl, " (", hlperc, "%)", sep = ""), color="#0A9CC7") +
+			 annotate("text", x = 8.25, y = 10.75, label = paste(numlh, " (", lhperc, "%)", sep = ""), color="#D15466") +
+			 annotate("text", x = 8.25, y = 4.85, label = paste(numll, " (", llperc, "%)", sep = ""), color="#0A9CC7")
+
+		cor_plot <- paste(res_dir, gp_gene, "_tex_cor_by_group.tiff", sep= "")
+		ggsave(g, file = cor_plot, width = 8, height = 7, dpi= 300, units = "in", device = "tiff")
+
+	}
+
+	if (corr_gene_plot) {  
+		for (ig in 1:length(corr_gene)) {cat("Generate boxplot of", corr_gene[ig], "in CD8/Tex group", "\n")
+		sub_corr$group <- sub_scres$group[match(rownames(sub_corr), sub_scres$pid)]
+		g <- ggplot(sub_corr, aes_string(x = "group", y = corr_gene[ig], color = "group", shape = "group")) +
+	    geom_boxplot(outlier.shape=NA) + 
+	    geom_point(position=position_jitterdodge()) +
+	    scale_shape_manual(values=c(16, 1, 16,1)) + scale_color_manual(values=c("#D15466","#D15466","#0A9CC7","#0A9CC7"))
+
+		g <- g + theme_classic() + theme(legend.position="none", axis.title.x=element_blank(),
+		                           axis.ticks.x = element_blank(),axis.text=element_text(size=14, color = "#000000"),
+		                           axis.title=element_text(size=14))#+ylim(4.75,8)
+		g <- g + stat_compare_means(method = "anova", #label.x = 3.5, label.y = 7.8, 
+			size = 5)
+		ggsave(g, file = paste(res_dir, corr_gene[ig], "_expr_CD8_tex_group.tiff", sep = ""), width = 7, height = 7, dpi= 300, units = "in", device = "tiff")
+		}
+	}
 }
-stop()
+
+
+if (sig_by_grade) {cat("Generate boxplot of Tex sig.score in different cancer grades\n")
+	grade_sig <- subset(sub_scres, grade != "NA")
+	if (length(unique(grade_sig$grade)) == 2) {method = "t.test"}
+	if (length(unique(grade_sig$grade)) > 2) {method = "anova"}
+	g <- ggboxplot(grade_sig, x = "grade", y = "sig_score",
+	           add = "jitter") + stat_compare_means(method = method, #label.x = 2.5, label.y = 11, 
+	           size = 5)
+	g <- g + theme_classic() + theme(legend.position = "none", axis.title.x = element_blank(),
+		axis.ticks.x = element_blank(), axis.text = element_text(size = 14, color = "#000000"),
+	    axis.title = element_text(size=14)) + ylab("Tex sig.score")
+	ggsave(g, file = paste(res_dir, "grade_tex_score_boxplot.tiff", sep = ""), width = 5, height = 6, dpi= 300, units = "in", device = "tiff")
+}
+
+
 #differential expression analysis in high/low Tex group
 if (diff_expr) {cat("Perform differential analysis in subgroup\n")
 	if (db_name == "metabric") { cat("Run limma in subgroup\n") #limma package for microarray data
@@ -775,11 +861,11 @@ if (diff_expr) {cat("Perform differential analysis in subgroup\n")
 		print_res$low_up[print_res$logFC <= -1 & print_res$adj.P.Val < 0.05] = 1
 		print_res$low_down[print_res$logFCe >= 1 & print_res$adj.P.Val < 0.05] = 1
 
-		csv_file = paste(de_dir, res_folder, "limma.csv", sep = "_")
+		csv_file = paste(res_dir, "de_limma.csv", sep = "")
 		write.csv(print_res, file = csv_file)
 
 		cat("Generate volcano plots...\n")
-		tiff_file = paste(de_dir, res_folder, "volplot_limma.tiff", sep = "_")
+		tiff_file = paste(res_dir, "volplot_limma.tiff", sep = "")
 		evplot <- EnhancedVolcano(print_res, 
 			x = 'logFC', y = 'adj.P.Val',
 			lab = print_res$ILMN_Gene,
@@ -840,11 +926,11 @@ if (diff_expr) {cat("Perform differential analysis in subgroup\n")
 		merge_res$low_up[merge_res$log2FoldChange <= -1 & merge_res$padj < 0.05] = 1
 		merge_res$low_down[merge_res$log2FoldChange >= 1 & merge_res$padj < 0.05] = 1
 
-		csv_file = paste(de_dir, res_folder, "deseq2.csv", sep = "_")
+		csv_file = paste(res_dir, "deseq2.csv", sep = "")
 		write.csv(merge_res, file = csv_file)
 
 		cat("Generate volcano plots...\n")
-		tiff_file = paste(de_dir, res_folder, "volplot_deseq2.tiff", sep = "_")
+		tiff_file = paste(res_dir, "volplot_deseq2.tiff", sep = "")
 		evplot <- EnhancedVolcano(merge_res, lab = merge_res$ILMN_Gene,
 			x = 'log2FoldChange', y = 'padj',
 			xlab = bquote(~Log[2]~ 'fold change'),
