@@ -61,36 +61,48 @@ sr_clst = function(sc_obj, ndim, resdir) {
 }
 
 
+######################################################
+suppressMessages(library(dplyr))
+suppressMessages(library(Seurat))
+suppressMessages(library(ggplot2))
 
-library(dplyr)
-library(Seurat)
-library(ggplot2)
 
-sc_obj.data <- Read10X(data.dir = "C:/Users/jitan/Documents/New folder/")
-st = Sys.time()
-sc_obj <- CreateSeuratObject(counts = rna_sc_obj, project = "sc_objER")
-sc_obj
-print(Sys.time()-st)
-
+data_dir = "//isi-dcnl/user_data/plee/Group/scmodb/10X/"
 work_dir = "//bri-net/citi/Peter Lee Group/Joyce/single_cell/seurat_analysis/"
-data_name = "Dana_tumor" #"Dana_TNBC" #Public scRNA raw data
+data_name = "public_br_scRNAseq" #Public scRNA raw data
+ #"vdj_citeseq_expr_112019" / "10X"
 cluster = "immune_res" # all immune cells 
 reclst = "tcell_res" #recluster in t cells
-data_dir = paste(work_dir, data_name, "/", sep = "") 
+
+scobj_dir = paste(data_dir, data_name, "/", sep = "") 
 res_dir = paste(work_dir, data_name, cluster, "/", sep = "/")
 reclst_res_dir = paste(work_dir, data_name, reclst, "/", sep = "/")
 
 
 
-sc_obj <- readRDS(paste(work_dir, data_name, "BC3_5_TNBC_all_filter_seurat_project.RDS", sep= "/"))
-sc_obj <- read.csv(paste(work_dir, data_name, "raw_corrected.csv", sep= "/"))
+batch_check = TRUE #if batch check is needed
+batch_cor = TRUE #if batch correction is needed
+recluster = TRUE
+
+
+
+script_dir = "~/GitHub/seurat_analysis/"
+script_name = "seurat_single_cell.R"
+file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
+
+
+sc_obj.data <- Read10X(data.dir = "C:/Users/jitan/Documents/New folder/")
+sc_obj <- CreateSeuratObject(counts = rna_sc_obj, project = "sc_objER")
 sc_obj <- CreateSeuratObject(counts = sc_obj, project = "sc_BC")
 saveRDS(sc_obj, paste(res_dir, "all_filter_seurat_project.RDS", sep = ""))
 
-batch_check = TRUE #if batch check is needed
-batch_cor = TRUE #if batch correction is needed
-ndim = 15 ## choose PC
-recluster = TRUE
+
+sc_obj <- readRDS(paste(scobj_dir, "BC3_5_TNBC_all_filter_seurat_project.RDS", sep= ""))
+sc_obj <- readRDS(paste(scobj_dir, "all_raw_10X_seurat_objects_list.RDS", sep = ""))
+sc_obj <- read.csv(paste(work_dir, data_name, "raw_corrected.csv", sep= "/"))
+
+
+
 
 ###########QC
 sc_obj[["percent.mt"]] <- PercentageFeatureSet(sc_obj, pattern = "^MT.")
