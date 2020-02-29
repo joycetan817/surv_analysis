@@ -155,10 +155,10 @@ sub_scres$group<-factor(sub_scres$group, levels = c("CD8hiTexhi", "CD8hiTexlo", 
 gp_gene = "PDCD1" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres, caltype = "mean", map = selfmap)
 
-sub_scres$PD1<-sub_expr$PDCD1[match(sub_scres$pid, sub_expr$pid)]
+sub_scres$PDCD1<-sub_expr$PDCD1[match(sub_scres$pid, sub_expr$pid)]
 gp_gene = "CD274" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 sub_expr = singene_expr(gene = gp_gene, expr = expr, annot = annot, subdf = sub_scres, caltype = "mean", map = selfmap)
-sub_scres$PDL1<-sub_expr$CD274[match(sub_scres$pid, sub_expr$pid)]
+sub_scres$CD274<-sub_expr$CD274[match(sub_scres$pid, sub_expr$pid)]
 
 g<-ggboxplot(sub_scres, x = "group", y = "PD1",
           color = "group", palette = c("#D15466","#D15466","#0A9CC7","#0A9CC7"),
@@ -186,6 +186,7 @@ g<-g+theme_classic()+theme(legend.position="none", axis.title.x=element_blank(),
                            axis.title=element_text(size=14))+ylim(4.75,8)
 c<-g+stat_compare_means(method = "anova", label.x = 3.5, label.y = 7.8, size = 5)
 
+ggsave(j, file = "PD1_CD8A_tex_ER_IDC_cbpt.tiff", width = 7, height = 7, dpi= 300, units = "in", device = "tiff")
 
 ##################################PDL1
 
@@ -197,3 +198,7 @@ g<-g+theme_classic()+theme(legend.position="none", axis.title.x=element_blank(),
                            axis.ticks.x = element_blank(),axis.text=element_text(size=14, color = "#000000"),
                            axis.title=element_text(size=14))+ylim(5, 6.5)
 c<-g+stat_compare_means(method = "anova", label.x = 3.5, label.y = 7.8, size = 5)
+
+my_comparisons <- list( c("CD8hiTexhi", "CD8hiTexlo"), c("CD8hiTexhi", "CD8loTexhi"), c("CD8hiTexhi", "CD8loTexlo"), c("CD8hiTexlo", "CD8loTexhi"), c("CD8hiTexlo", "CD8loTexlo"), c("CD8loTexhi", "CD8loTexlo") )
+
+g <- g + stat_compare_means(comparisons = my_comparisons, method = "t.test", label = "p.signif")
