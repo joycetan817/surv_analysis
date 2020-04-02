@@ -1,4 +1,4 @@
- sub_scres$pam50[sub_scres$pam50=="Normal"]="Normal-like"
+sub_scres$pam50[sub_scres$pam50=="Normal"]="Normal-like"
 sub_scres$pam50<-factor(sub_scres$pam50, levels = c("LumA", "LumB", "Basal", "Her2","Normal-like"))
 g<-ggplot(sub_scres, aes(pam50, sig_score, fill=pam50))+geom_boxplot()
 g<-g+theme_classic()+theme(legend.position="none", axis.title.x=element_blank(),
@@ -43,7 +43,10 @@ sub_scres<-subset(sub_scres, HR != 0)
 
 ggboxplot(sub_scres, x = "HR", y = "mutation",
           color = "HR", palette = c("#0A9CC7","#D15466"),
-          add = "jitter")
+          add = "jitter") + scale_y_log2(breaks = trans_breaks("log2", function(x) 10^x),
+              labels = trans_format("log2", math_format(2^.x)))
+
+
 g<-ggplot(sub_scres, aes(HR, sig_score, fill=HR))+geom_boxplot()
 g<-g+theme_classic()+theme(legend.position="none", axis.title.x=element_blank(),
                            axis.ticks.x = element_blank(),axis.text=element_text(size=14, color = "#000000"),
@@ -275,3 +278,231 @@ survcurv<- ggsurvplot(fit, data = sub_scres,  xlim = c(0,30),
            ggtheme = theme_classic(),
            palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2))
 g<-survcurv$plot+theme(axis.text=element_text(size=5.67, colour = "black"),axis.title=element_text(size=5.67,colour = "black"), axis.ticks = element_line(colour = "black", size = 0.2), axis.line = element_line(colour = 'black', size = 0.2), axis.ticks.length = unit(1.5, "pt"))+scale_y_continuous(breaks=seq(0,1,0.2))+scale_x_continuous(breaks=seq(0,30,5))
+
+
+
+g<-ggplot(sub_scres,aes(x=HR,y=sig_score)) +
+    geom_boxplot(outlier.shape=NA, size = 0.05) + 
+    geom_jitter(width = 0.25,size=0.05)
+
+g<-g+theme_classic()+theme(legend.position="none", axis.title.x=element_blank(),
+                                                       axis.ticks.x = element_blank(),axis.text=element_text(size=5.67, color = "#000000"),
+                                                       axis.title=element_text(size=5.67) , axis.ticks = element_line(colour = "black", size = 0.2), axis.line = element_line(colour = 'black', size = 0.2), axis.ticks.length = unit(1.5, "pt")) +ylab("Tex sig.score")
+g<-g+stat_compare_means(method = "t.test", label.x = 1.5, label.y = 11, size = 2, label = "p.format")
+
+
+g<-ggplot(test,aes(x=grade,y=sig_score)) +
+     geom_boxplot(outlier.shape=NA, size = 0.05) + 
+     geom_jitter(width = 0.25,size=0.05)
+
+
+
+my_comparisons <- list( c("CD8hiTexhi", "CD8hiTexlo"), c("CD8hiTexhi", "CD8loTexhi"), c("CD8hiTexhi", "CD8loTexlo"), c("CD8hiTexlo", "CD8loTexhi"), c("CD8hiTexlo", "CD8loTexlo"), c("CD8loTexhi", "CD8loTexlo") )
+
+g <- g + stat_compare_means(comparisons = my_comparisons, method = "t.test", label = "p.signif")
+
+
+
+for (ig in 1:length(corr_gene)) {cat("Generate boxplot of", corr_gene[ig], "in CD8/Tex group", "\n")
+    sub_corr$group <- sub_scres$group[match(rownames(sub_corr), sub_scres$pid)]
+    g <- ggplot(sub_corr, aes_string(x = "group", y = corr_gene[ig], color = "group", shape = "group")) +
+        geom_boxplot(outlier.shape=NA,size = 0.05) + 
+        geom_point(position=position_jitterdodge(), size=0.5) + 
+        scale_shape_manual(values=c(16, 1, 16,1)) + scale_color_manual(values=c("#D15466","#D15466","#0A9CC7","#0A9CC7"))
+    
+    g <- g + theme_classic() + theme(legend.position="none", axis.title.x=element_blank(),
+                                     axis.ticks.x = element_blank(),axis.text=element_text(size=5.67, color = "#000000"),
+                                     axis.title=element_text(size=5.67),  axis.ticks = element_line(colour = "black", size = 0.2), axis.line = element_line(colour = 'black', size = 0.2), axis.ticks.length = unit(1.5, "pt"))
+    
+    my_comparisons <- list( c("CD8hiTexhi", "CD8hiTexlo"), c("CD8hiTexhi", "CD8loTexhi"), c("CD8hiTexhi", "CD8loTexlo"), c("CD8hiTexlo", "CD8loTexhi"), c("CD8hiTexlo", "CD8loTexlo"), c("CD8loTexhi", "CD8loTexlo") )
+    #g <- g + stat_compare_means(method = "anova", #label.x = 3.5, label.y = 7.8, 
+    #size = 5c    g <- g + stat_compare_means(comparisons = my_comparisons, method = "t.test", label = "p.signif", size = 2,bracket.size = 0.2)
+    
+    ggsave(g, file = paste(res_dir, corr_gene[ig], "_expr_CD8_tex_group.tiff", sep = ""), width = 2.5, height = 2.75, dpi= 300, units = "in", device = "tiff")
+}
+
+g<-ggscatter(sub_scres, x = "sig_score", y = "CD8A", # genes correlate with sig.score
+             color = "darkgray", fill="darkgray",shape = 21, size = 0.5, xlim=c(7,10.75),
+             add = "reg.line",  # Add regressin line
+             add.params = list(color = "black", fill = "lightgray", size=0.25), # Customize reg. line
+             conf.int = TRUE, # Add confidence interval
+             cor.coef = TRUE, # Add correlation coefficient.
+             cor.coeff.args = list(method = "pearson", size = 2,label.x = 7, label.sep = ", ")
+) + xlab("Tex sig.score")
+g <- g + theme_classic() + theme( 
+    axis.text=element_text(size=5.67, color = "#000000"),
+    axis.title=element_text(size=5.67),  axis.ticks = element_line(colour = "black", size = 0.2), axis.line = element_line(colour = 'black', size = 0.2), axis.ticks.length = unit(1.5, "pt"))
+ggsave(paste(plot_dir, "CD8A_tex_cor_TNBC_IDC_cbpt_simp.tiff", sep=""), plot = g, dpi = 300, width = 3, height = 3, units = 'in')
+
+
+g<-ggplot(sub_scres, aes(x = group, y = mutation,
+                         color = group)) + geom_boxplot(outlier.shape=NA,size = 0.05) + 
+    geom_jitter(width = 0.25, size=0.05) + scale_y_continuous(trans = log2_trans(), labels =  trans_format("log2", math_format(2^.x))) + ylab("Mutation burden") +scale_color_manual(values=c("#D15466","#0A9CC7"))
+
+g <- g + theme_classic() + theme( legend.position="none", axis.title.x=element_blank(),
+                                  axis.text=element_text(size=5.67, color = "#000000"),
+                                  axis.title=element_text(size=5.67),  axis.ticks = element_line(colour = "black", size = 0.2), axis.line = element_line(colour = 'black', size = 0.2), axis.ticks.length = unit(1.5, "pt"))+stat_compare_means(label = "p.format", size = 2, label.x = 1.5)
+
+ggsave(paste(plot_dir, "ER_tex_group_TMB_log2_cbpt.tiff", sep=""), plot = g, dpi = 300, width = 1.25, height = 1.5, units = 'in')
+
+hh<-subset(sub_scres, group == "CD8hiTexhi")
+> hl<-subset(sub_scres, group == "CD8hiTexlo")
+> lh<-subset(sub_scres, group == "CD8loTexhi")
+> ll<-subset(sub_scres, group == "CD8loTexlo")
+
+
+
+
+sgroup<-sub_scres[,c("pid", "group")]
+    expr<-expr [, rownames(sgroup)] # columns of the count matrix and the rows of the column data in the same order
+    all(rownames(sgroup) == colnames(expr))
+    group <- factor (sgroup$group)
+    #sgroup$group <- relevel(sgroup$group, ref = "Low")?
+    design <- model.matrix(~ sgroup$group)
+    fit = lmFit(expr, design)
+    fit <- eBayes(fit)
+    restable<-topTable(fit, number = nrow(fit))
+    restable$logFC<- -(restable$logFC)
+
+    if (expr_type != "median") {
+      gene_annot<- annot[, c("Probe_Id", "ILMN_Gene", "Definition")]
+      rownames(gene_annot)<-gene_annot$Probe_Id
+      print_res = merge(gene_annot, restable, by =0)
+      } else { 
+      print_res <- restable
+      print_res$ILMN_Gene <- rownames(print_res)
+    }
+
+    cat("Filter the genes with altered expression in high/low group\n")
+   print_res$lh_up<-0
+  print_res$lh_down<-0
+  print_res$ll_up<-0
+  print_res$ll_down<-0
+
+    print_res$lh_up[print_res$logFC >= 0.5 & print_res$adj.P.Val < 0.05] = 1
+    print_res$lh_down[print_res$logFC <= -0.5 & print_res$adj.P.Val < 0.05] = 1
+    print_res$ll_up[print_res$logFC <= -0.5 & print_res$adj.P.Val < 0.05] = 1
+    print_res$ll_down[print_res$logFCe >= 0.5 & print_res$adj.P.Val < 0.05] = 1
+
+    csv_file = paste(res_dir, "de_limma.csv", sep = "")
+    write.csv(print_res, file = csv_file)
+
+    cat("Generate volcano plots...\n")
+    tiff_file = paste(res_dir, "volplot_limma.tiff", sep = "")
+    evplot <- EnhancedVolcano(print_res, 
+      x = 'logFC', y = 'adj.P.Val',
+      lab = print_res$ILMN_Gene,
+      pCutoff = 0.05, FCcutoff = 0.5, 
+      #xlim = c(-8, 8), 
+      title = "CD8hiTexhi vs CD8hiTexlo",
+      transcriptPointSize = 1.5,
+      transcriptLabSize = 3.0,
+      xlab = bquote(~Log[2]~ 'fold change'),
+      ylab = bquote(~-Log[10]~adjusted~italic(P)),
+      cutoffLineWidth = 0.8,
+      cutoffLineCol = 'black',
+      #legend=c('NS','Log (base 2) fold-change','Adjusted P value\n (FDR)',
+        #'Significantly \ndifferentially \nexpressed genes'),
+      legend=c('NS','Log2 FC','Adjusted p-value', 'Adjusted p-value & Log2 FC'),
+      legendPosition = 'bottom')
+    tiff(tiff_file, res = 300, width = 9, heigh = 9, units = 'in')
+    print(evplot)
+    gar = dev.off()
+
+
+
+
+for (i in 1:55) {
+  test[,i]<-rescale(test[,i], to = c(0,10))
+}
+
+
+
+
+g<-ggscatter(tml, x = "Tex", y = "TML", # genes correlate with sig.score
+color = "black", fill="black",shape = 21, size = 1, xlim = c(0,15), ylim = c(0,30),add = "reg.line",  # Add regressin line
+add.params = list(color = "black", fill = "lightgray", size=0.25), # Customize reg. line
+cor.coef = TRUE, # Add correlation coefficient.cor.coeff.args = list(method = "pearson", size = 2, label.x = 10.5,label.y =28.5,label.sep = ", ")) + xlab("%Tex of CD8 (IHC)") +ylab ("Tumor Mutation Load")
+g <- g + theme_classic() + theme(axis.text=element_text(size=5.67, color = "#000000"),axis.title=element_text(size=5.67),  axis.ticks = element_line(colour = "black", size = 0.2), axis.line = element_line(colour = 'black', size = 0.2), axis.ticks.length = unit(1.5, "pt"))
+
+ggsave(paste(plot_dir, "tex_tml_ihc.tiff", sep=""), plot = g, dpi = 300, width = 3, height = 3, units = 'in')
+
+
+g<-ggscatter(tml, x = "Tex", y = "TML", # genes correlate with sig.score
+                    color = "black", fill="black",shape = 21, size = 1,
+                    add = "reg.line",  # Add regressin line
+                    add.params = list(color = "black", fill = "lightgray",size=0.25), # Customize reg. line
+                    conf.int = FALSE, # Add confidence interval
+                    cor.coef = TRUE, # Add correlation coefficient.
+                    cor.coeff.args = list(method = "pearson", size = 2, label.x = 10.5,label.y =28.5,label.sep = ", ")
+) +xlab("%Tex of CD8 (IHC)") +ylab ("Tumor Mutation Load")
+
+g<-ggscatter(tml, x = "Tex", y = "TML", # genes correlate with sig.score
+                    color = "black", fill="black",shape = 21, size = 0.5,
+                    add = "reg.line",  # Add regressin line
+                    add.params = list(color = "black", fill = "lightgray",size=0.25), # Customize reg. line
+                    conf.int = FALSE, # Add confidence interval
+                    cor.coef = TRUE, # Add correlation coefficient.
+                    cor.coeff.args = list(method = "pearson", size = 2, label.x = 4,label.y =24,label.sep = ", ")
+) +xlab("%Tex of CD8 (IHC)") +ylab ("Tumor Mutation Load")
+
+
+library(scales)
+library(circlize)
+
+sub_scres<-sub_scres[order(sub_scres$group),]
+expr<-expr [, rownames(sub_scres)]
+test<-unique(matrix)
+expr_matrix<-subset(expr, rownames(expr) %in% matrix$hh)
+for (i in 1:1098) {
+    expr_matrix[,i]<-rescale(expr_matrix[,i], to = c(-4,4))
+}
+
+expr_matrix<-as.matrix(expr_matrix)
+Heatmap(expr_matrix, name = "expr_matrix",cluster_columns = FALSE, show_column_dend = FALSE,column_split = c(rep("CD8hiTexhi", 150), rep("CD8hiTexlo", 125),rep("CD8loTexhi", 125),rep("CD8loTexlo", 698)))
+
+
+    sub_scres$sig_score<-rescale(sub_scres$sig_score, to = c(-4,4))
+
+    sub_scres$CD8A<-rescale(sub_scres$CD8A, to = c(-4,4))
+    col_fun<-colorRamp2(c(4,-4), c("sienna2", "skyblue"))
+
+
+
+###################signature self correlation
+test<-subset(expr, Hugo_Symbol %in% rownames(sign))
+test<-test[,-c(1:2)]
+test<-t(test)
+
+subcorres = rcorr(test)
+corr_tif = paste(res_dir, db_name, sg_name, pamst, "gene_correlation_v2.tiff", sep = "_")
+tiff(corr_tif, res = 180, width = 20, height = 20, units = "in") # save corrplot jpeg file name
+corrplot(subcorres$r, type="upper",method = "number",
+         p.mat = subcorres$P, sig.level = 0.0001) ## Specialized the insignificant value according to the significant level
+dev.off()
+
+
+evplot <- EnhancedVolcano(print_res, 
+                          x = 'logFC', y = 'adj.P.Val',
+                          lab = print_res$ILMN_Gene,
+                          pCutoff = 0.05, FCcutoff = 1.0, 
+                          xlim = c(-4, 4), ylim = c(0,180),
+                         
+                          transcriptPointSize = 0.5,
+                          transcriptLabSize = 1,
+                          xlab = bquote(~Log[2]~ 'fold change'),
+                          ylab = bquote(~-Log[10]~adjusted~italic(P)),
+                          cutoffLineWidth = 0.1,
+                          cutoffLineCol = 'black',
+                          #legend=c('NS','Log (base 2) fold-change','Adjusted P value\n (FDR)',
+                          #'Significantly \ndifferentially \nexpressed genes'),
+                          legend=c('NS','Log2 FC','Adjusted p-value', 'Adjusted p-value & Log2 FC'),
+                          legendPosition = 'bottom', title = "", subtitle = "", caption="")
+
+
+g <- evplot +theme_classic()+ theme(legend.position = "bottom",legend.title=element_blank(), legend.text = element_text(size=5.67),legend.key.size = unit(0.1, "cm"),
+                                     ,axis.text=element_text(size=5.67, color = "#000000"),axis.title=element_text(size=5.67),  axis.ticks = element_line(colour = "black", size = 0.2), axis.line = element_line(colour = 'black', size = 0.2), axis.ticks.length = unit(1.5, "pt")) +guides(colour = guide_legend(override.aes = list(size=1)))
+c<-g+annotate("text", x = -2.75, y = 180, label = "Upregulated in Tex low", size = 1.5)+annotate("text", x = 2.75, y = 180, label = "Upregulated in Tex high",size=1.5)
+
+
+ggsave(plot=c, file="test.tiff", width = 2.75, height = 3.25, units = "in")
