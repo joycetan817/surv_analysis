@@ -206,7 +206,7 @@ c<-g+stat_compare_means(method = "anova", label.x = 3.5, label.y = 7.8, size = 5
 cibersort<-read.csv("Y:/Joyce/cibersort/cibersort_res_for_plot.csv")
 cibersort<-cibersort[-c(24:26)]
 
-sub_scres<-subset(sub_scres, group == "High")
+
 ciber<-subset(cibersort, Mixture %in% sub_scres$pid)
 ciber<-gather(ciber, "cell_type", "Fraction", -Mixture)
 ciber$group="Medium"
@@ -223,12 +223,8 @@ ciber$group[ciber$Mixture %in% high$pid]="NR"
 ciber$group[ciber$Mixture %in% low$pid]="R"
 ciber<-subset(ciber, group != "Medium")
 
- g<-ggplot(ciber, aes(cell_type, Fraction, color=group))+geom_boxplot()+geom_point(position=position_dodge(0.8), alpha = 1/20)
  
- g<-g+theme_classic()+theme( axis.title.x=element_blank(),
-                           axis.ticks.x = element_blank())+stat_compare_means(label = "p.signif")
-
-g<-g+theme(axis.text.x = element_text(angle = 45, hjust = 1) )
+ 
 ggsave(plot=g, "Y:/Joyce/cibersort/TCF7_one25_TNBC_cbpt_ttest.tiff", device = "tiff", width = 9, height = 6)
 
 
@@ -506,3 +502,280 @@ c<-g+annotate("text", x = -2.75, y = 180, label = "Upregulated in Tex low", size
 
 
 ggsave(plot=c, file="test.tiff", width = 2.75, height = 3.25, units = "in")
+
+
+
+for (isa in 1:length(inFiles)) {
+  st = Sys.time()
+  message(saName[isa], ":" , inFiles[isa])
+  tmpDir = paste(data_dir, inFiles[isa], sep = "")
+  tmpData = try(Read10X(tmpDir))
+  if (class(tmpData) == "try-error") {
+      cat("Using customized function to read 10X result!\n")
+      tmpData = read10XSelf(tmpDir)}
+
+  srData[saName[isa]] = tmpData
+  
+  tisName = str_split_fixed(saName[isa], "_", n = 3)[,3]
+  patName = str_split_fixed(saName[isa], "_", n = 3)[,1]
+  primeName = str_split_fixed(saName[isa], "_", n = 3)[,2]
+
+
+  if (primeName == "five") { 
+   
+    tmpObj = CreateSeuratObject(counts = tmpData$`Gene Expression`, project = saName[isa])
+    } else {
+    tmpObj = CreateSeuratObject(counts = tmpData, project = saName[isa])
+    }
+
+  
+
+  
+  cat(tisName, patName, "\n")
+  tmpObj@meta.data$tissue = tisName
+  tmpObj@meta.data$patient = patName
+  tmpObj@meta.data$prime = primeName
+
+  #srObjs[saName[isa]] = tmpObj
+  #srObjs[isa] = tmpObj
+
+  #print(tmpObj)
+  tmpObj = sr_QC(tmpObj, resdir = res_dir, proFlag = proteinflag)
+  srObjs[[isa]] = tmpObj
+  assign(saName[isa], tmpObj)
+  
+}
+
+test$new_clonotype_id = "None"
+for (ic in 1:length(test$cdr3)) {
+     sub_cdr3= test$cdr3[ic]
+     test1<-subset(test,cdr3 == sub_cdr3)
+     if (nrow(test1) <2) {
+    test$new_clonotype_id[test$cdr3 == sub_cdr3]=test1$raw_clonotype_id[1]
+     } 
+     if (nrow(test1) >2) {
+   test$new_clonotype_id[test$cdr3 == sub_cdr3]=test1$raw_clonotype_id[1]
+     }  
+}
+
+
+cox_uni_ER = as.data.frame(matrix(ncol =3, nrow = 6))
+
+sub_scres$gpvalue<-sub_scres$CD3
+qcov = quantile(sub_scres$gpvalue, c(qcut, 1-qcut)) 
+
+
+sub_scres$group = "Medium"
+  sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"
+  sub_scres[sub_scres$gpvalue >= qcov[[2]],"group"] = "High"
+
+  sub_scres = sub_scres[sub_scres$group != "Medium",]
+sub_scres$group<-factor(sub_scres$group, levels = c("Low", "High"))
+
+
+res.cox <- coxph(Surv(rfst, rfse) ~ group, data=sub_scres)
+
+prescox = summary(res.cox)
+
+
+res.cox <- coxph(Surv(rfst, rfse) ~ group+age+grade+tsize+node_stat, data=sub_scres)
+
+res.cox <- coxph(Surv(rfst, rfse) ~ group, data=sub_scres)
+
+cox_uni = as.data.frame(matrix(ncol = 3, nrow = 6)
+
+
+
+cox_uni[1,1]<-prescox[["waldtest"]][["pvalue"]]
+cox_uni[1,2]<-prescox[["conf.int"]][3]
+ 
+cox_uni[1,3]<-prescox[["conf.int"]][4]
+
+prescox[["waldtest"]][["pvalue"]]
+
+
+cox_multi[1,1]<-prescox[["coefficients"]][1,5]
+cox_multi[1,2]<-prescox[["conf.int"]][1,3]
+cox_multi[1,3]<-prescox[["conf.int"]][1,4]
+
+cox_uni = as.data.frame(matrix(ncol = 3, nrow = 6)
+
+cox_value_uni[1,1]<-prescox[["waldtest"]][["pvalue"]]
+cox_value_uni[1,2]<-prescox[["conf.int"]][3]
+ 
+cox_value_uni[1,3]<-prescox[["conf.int"]][4]
+
+
+
+res.cox <- coxph(Surv(ost, ose) ~ gpvalue+age+grade+tsize+node_stat, data=sub_scres)
+
+uni_value_ER[1,1]<-prescox[["waldtest"]][["pvalue"]]
+uni_value_ER[1,2]<-prescox[["conf.int"]][3]
+ 
+uni_value_ER[1,3]<-prescox[["conf.int"]][4]
+
+multi_value_ER[1,1]<-prescox[["coefficients"]][1,5]
+multi_value_ER[1,2]<-prescox[["conf.int"]][1,3]
+multi_value_ER[1,3]<-prescox[["conf.int"]][1,4]
+
+
+
+sub_scres$group = "Medium"
+sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"
+sub_scres[sub_scres$gpvalue >= qcov[[2]],"group"] = "High"
+
+sub_scres[,"CD8_group"] = sub_scres[,"group"]
+sub_scres[,"gpvalue"] = sub_scres[,"sig_score"] 
+qcov = quantile(sub_scres$gpvalue, c(qcut, 1-qcut)) # quantile cutoff value
+
+sub_scres$group = "Medium"
+sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"
+sub_scres[sub_scres$gpvalue >= qcov[[2]],"group"] = "High"
+sub_scres = sub_scres[sub_scres$group != "Medium",]
+sub_scres = sub_scres[sub_scres$CD8_group != "Medium",]
+
+numhh <- sum(sub_scres$CD8_group =="High" & sub_scres$group == "High")
+numhl <- sum(sub_scres$CD8_group =="High" & sub_scres$group == "Low")
+numlh <- sum(sub_scres$CD8_group =="Low" & sub_scres$group == "High")
+numll <- sum(sub_scres$CD8_group =="Low" & sub_scres$group == "Low")
+
+fit <- survfit(Surv(ost, ose) ~ CD8_group+group, data=sub_scres)
+survcurv <- ggsurvplot(fit, data = sub_scres,
+               xlim = c(0,11000), ylim = c(0.00, 1.00),
+               pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
+               conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
+               xlab = "Time (days)", ylab = "Overall Survival", legend.title = "",
+               legend.labs = c(paste("CD8hiTexhi, n =",numhh), paste("CD8hiTexlo, n =",numhl) ,paste("CD8loTexhi, n =",numlh), paste("CD8loTexlo, n =",numll)),
+#                                      surv.median.line = "hv",
+               ggtheme = theme_classic(),
+               palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
+               font.x = c(14, "bold"), font.y = c(18, "bold"), 
+               font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
+               risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
+surv_plot <- paste(res_dir,"os_four_survana.tiff", sep="")
+ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
+
+
+fit <- survfit(Surv(rfst, rfse) ~ CD8_group+group, data=sub_scres)
+survcurv <- ggsurvplot(fit, data = sub_scres,
+               xlim = c(0,11000), ylim = c(0.00, 1.00),
+               pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
+               conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
+               xlab = "Time (days)", ylab = "Relapse-free Survival", legend.title = "",
+               legend.labs = c(paste("CD8hiTexhi, n =",numhh), paste("CD8hiTexlo, n =",numhl) ,paste("CD8loTexhi, n =",numlh), paste("CD8loTexlo, n =",numll)),
+#                                      surv.median.line = "hv",
+               ggtheme = theme_classic(),
+               palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
+               font.x = c(14, "bold"), font.y = c(18, "bold"), 
+               font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
+               risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
+surv_plot <- paste(res_dir,"rfs_four_survana.tiff", sep="")
+ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
+
+
+
+
+
+fit <- survfit(Surv(ost, ose) ~ CD8_group+group, data=sub_scres)
+survcurv <- ggsurvplot(fit, data = sub_scres,
+               xlim = c(0,11000), ylim = c(0.00, 1.00),
+               pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
+               conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
+               xlab = "Time (days)", ylab = "Overall Survival", legend.title = "",
+               legend.labs = c(paste("CD8hiTexhi, n =",numhh), paste("CD8loTexhi, n =",numlh), paste("CD8loTexlo, n =",numll)),
+#                                      surv.median.line = "hv",
+               ggtheme = theme_classic(),
+               palette = c("#D15466","#D15466","#0A9CC7"), linetype = c(1,2,2), 
+               font.x = c(14, "bold"), font.y = c(18, "bold"), 
+               font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
+               risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
+surv_plot <- paste(res_dir,"wt_hl_os_four_survana.tiff", sep="")
+ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
+
+
+fit <- survfit(Surv(rfst, rfse) ~ CD8_group+group, data=sub_scres)
+survcurv <- ggsurvplot(fit, data = sub_scres,
+               xlim = c(0,11000), ylim = c(0.00, 1.00),
+               pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
+               conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
+               xlab = "Time (days)", ylab = "Relapse-free Survival", legend.title = "",
+               legend.labs = c(paste("CD8hiTexhi, n =",numhh) ,paste("CD8loTexhi, n =",numlh), paste("CD8loTexlo, n =",numll)),
+#                                      surv.median.line = "hv",
+               ggtheme = theme_classic(),
+               palette = c("#D15466", "#D15466","#0A9CC7"), linetype = c(1,2,2), 
+               font.x = c(14, "bold"), font.y = c(18, "bold"), 
+               font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
+               risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
+surv_plot <- paste(res_dir,"wt_hl_rfs_four_survana.tiff", sep="")
+ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
+
+sub_scres$tex_group<-sub_scres$group
+sub_scres$group[sub_scres$CD8_group=="High" & sub_scres$tex_group == "High"]="CD8hiTexhi"
+sub_scres$group[sub_scres$CD8_group=="High" & sub_scres$tex_group == "Low"]="CD8hiTexlo"
+sub_scres$group[sub_scres$CD8_group=="Low" & sub_scres$tex_group == "Low"]="CD8loTexlo"
+sub_scres$group[sub_scres$CD8_group=="Low" & sub_scres$tex_group == "High"]="CD8loTexhi"
+
+
+
+sub_scres$group = "Medium"
+sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
+sub_scres[sub_scres$gpvalue > qcov[[1]],"group"] = "High"
+
+test<-sub_scres
+sub_scres<-subset(sub_scres, group =="High")
+
+sub_scres[,"CD8_group"] = sub_scres[,"group"]
+  sub_scres[,"gpvalue"] = sub_scres[,"sig_score"]
+  qcov = quantile(sub_scres$gpvalue, c(1-qcut))
+  sub_scres$group = "Medium"
+  sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
+  sub_scres[sub_scres$gpvalue > qcov[[1]],"group"] = "High"
+
+numh <- sum( sub_scres$group == "High")
+numl <- sum( sub_scres$group == "Low")
+
+fit <- survfit(Surv(ost, ose) ~ group, data=sub_scres)
+    survcurv <- ggsurvplot(fit, data = sub_scres,
+                   xlim = c(0,11000), ylim = c(0.00, 1.00),
+                   pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
+                   conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
+                   xlab = "Time (days)", ylab = "Overall Survival", legend.title = "",
+                   legend.labs = c(paste("Texhi, n =",numh), paste("Texlo, n =",numl)),
+    #                                      surv.median.line = "hv",
+                   ggtheme = theme_classic(),
+                   palette = c("#D15466", "#0A9CC7"), linetype = c(1,1), 
+                   font.x = c(14, "bold"), font.y = c(18, "bold"), 
+                   font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
+                   risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
+    surv_plot <- paste(res_dir,"CD8hi_os_four_survana.tiff", sep="")
+    ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
+    
+
+    fit <- survfit(Surv(rfst, rfse) ~ group, data=sub_scres)
+    survcurv <- ggsurvplot(fit, data = sub_scres,
+                   xlim = c(0,11000), ylim = c(0.00, 1.00),
+                   pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
+                   conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
+                   xlab = "Time (days)", ylab = "Relapse-free Survival", legend.title = "",
+                   legend.labs = c(paste("Texhi, n =",numh), paste("Texlo, n =",numl)),
+    #                                      surv.median.line = "hv",
+                   ggtheme = theme_classic(),
+                   palette = c("#D15466", "#0A9CC7"), linetype = c(1,1), 
+                   font.x = c(14, "bold"), font.y = c(18, "bold"), 
+                   font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
+                   risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
+    surv_plot <- paste(res_dir,"CD8lo_rfs_four_survana.tiff", sep="")
+    ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
+
+sub_scres<-subset(test, group =="Low")
+
+
+
+
+  RNAexpr = c("CD4","KLRB1","CD40LG","S100A11","ANXA1","IL7R","S100A4","AQP3","FOS","BIRC3","PLP2","VIM","TIMP1","LTB","KLF6","AHNAK","TAGLN2","ALOX5AP","GPR183","TSC22D3","ITGB1","CD82","EMP3","LPAR6")
+
+
+
+
+  sc_obj@meta.data$tumor_tcf1[rownames(sc_obj@meta.data) %in% overlay] ="Overlay"
+  cellInRNA = rownames(tmpObj@meta.data)
