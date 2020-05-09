@@ -11,6 +11,7 @@ survana <- function(data, gptype = "Sig.score", plot = "", csv = "",
 	# NOTE: gptype should be the definition or basis of the grouping method, default is signature score.
 
 	cat("Analyzing overall survival...\n")
+	lab = "Overall Survival"
 	surv_data = sub_scres	
 	colnames(surv_data)[4:5] <- c("time", "status")
 	surv_data$time = as.numeric(surv_data$time)
@@ -48,21 +49,23 @@ survana <- function(data, gptype = "Sig.score", plot = "", csv = "",
 		surv_rescsv <- paste(csv, lab, gptype, "_survana_res.csv", sep="")
 		write.csv(fit_df, file=surv_rescsv)}
 	if (plot != "") {
+		max_ost = max(surv_data$time)
+		xlim_max = ceiling(max_ost/1000)*1000
 		surv_plot <- paste(plot, lab, gptype, "_survana_curves.tiff", sep="")
 		survcurv <- ggsurvplot(fit, data = surv_data,
-				       xlim = c(0,10000), ylim = c(0.00, 1.00),
-				       pval = TRUE, pval.size = 6, pval.coord = c(0, 0.2),
-				       conf.int = TRUE, conf.int.alpha = 0.2,
-				       xlab = "Time (days)", ylab = "Overall Survival", legend.title = gptype,
-				       legend.labs = c("High", "Low"),
+				       xlim = c(0,xlim_max), ylim = c(0.00, 1.00),
+				       pval = TRUE, pval.size = 6, pval.coord = c(3000, 0.1),
+				       conf.int = FALSE, conf.int.alpha = 0.2,
+				       xlab = "Time (days)", ylab = lab, legend.title = "",
+				       legend.labs = c(paste("High, n =", numh), paste("Low, n =", numl)), legend = c(0.15,0.15),
 #                                      surv.median.line = "hv",
 				       ggtheme = theme_classic(),
-				       palette = c("#E7B800", "#2E9FDF"), 
+				       palette = c("#D15466", "#0A9CC7"), 
 				       font.x = c(14, "bold"), font.y = c(18, "bold"), 
-				       font.tickslab = c(16, "plain"), font.legend = c(18, "bold"),
+				       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
 				       risk.table = FALSE, ncensor.plot = FALSE)
-		note_on_plot <- paste("nHigh = ", numh, "\t", "nLow = ", numl, "\t")
-		survcurv$plot <- survcurv$plot + annotate("text", x=2000, y=0.1, label=note_on_plot, size = 6)
+		#note_on_plot <- paste("nHigh = ", numh, "\t", "nLow = ", numl, "\t")
+		#survcurv$plot <- survcurv$plot + annotate("text", x=2000, y=0.1, label=note_on_plot, size = 6)
 		ggsave(surv_plot, plot = survcurv$plot, dpi = 120, width = 9, height = 6, units = 'in')
 	}
 }
@@ -132,8 +135,8 @@ suppressMessages(library(Hmisc))
 #################################################################################
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
 work_dir = "//Bri-net/citi/Peter Lee Group/Joyce/TCGA/"
-#db_name = "metabric"
-db_name = "tcga_stomach"
+organ = "crc"
+db_name = paste("tcga_", organ, sep = "")
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
@@ -145,7 +148,7 @@ sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with
 
 
 
-expr_file = "stomach_Primary_Tumor_FPKM-UQ_merged_tcga.RDS"
+expr_file = paste(organ, "_Primary_Tumor_FPKM-UQ_merged_tcga.RDS", sep = "")
 #expr_file = "tcga_brca_log2trans_fpkm_uq_v2.RDS" # Expression file
 clin_csv = "clinical_v2.csv" # clinical information with merged disease-free survival 
 annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
@@ -162,7 +165,7 @@ stageoi = 0 # Stage of interest: 1/2/3/4
 Tstageoi = 0 #c("T3", "T4") # T stage of interest : T1/T2/T3/T4
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
-qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
+qcut = 0.5 #0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = "" #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
@@ -173,7 +176,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_tcga_stad" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym50_tex_tcga_crc" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -236,7 +239,7 @@ if (dim(sub_clin)[1] <= 3) {stop("TOO SMALL SAMPLE SIZE!!!")}
 
 cat("Loading genome annotation data...\n")
 st = Sys.time()
-annot = as.data.frame(read_excel(paste(data_dir, annot_file, sep = ""))) 
+annot = as.data.frame(read_excel(paste(work_dir, annot_file, sep = ""))) 
 # annot = read.table(paste(data_dir, annot_file, sep = ""), header = TRUE)
 # print(head(annot))
 print(Sys.time()-st)
@@ -356,51 +359,52 @@ if (gp_gene != "") {
 
 #################################################################################
 ## Histogram for sig.score
-cat("Generate histogram plot of signature score\n")
-title = paste(db_name, sg_name, sep = "  ")
-sc_hist = ggplot(sub_scres, aes(x=gpvalue)) + 
-	geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
-	labs(title=title, x=hist_xlab, y = "Count") + 
-	theme_classic()
-sc_hist_bld = ggplot_build(sc_hist)
-sc_hist_data = sc_hist_bld$data[[1]]
-zero_x = sc_hist_data[sc_hist_data$count == 0,"x"]
-right_zero_count = sum(sc_hist_data[sc_hist_data$x>=zero_x[1],"count"])
-# print(right_zero_count)
-sc_hist = sc_hist + geom_vline(xintercept = zero_x[1], size = 1, colour = "grey",linetype = "dashed")
-if (gp_app == "oneqcut") {
-	cat("Group the patient by one quantile cutoff: ", qcut,"\n")
-	qcov = quantile(sub_scres$gpvalue, c(1-qcut)) # quantile cutoff value
-	# Add line for cutoff value
-	sc_hist = sc_hist + 
-		geom_vline(xintercept = qcov[[1]], size = 1, colour = "purple",linetype = "dotdash")
-	sc_hist = sc_hist + annotate("text", label = paste("Single cutoff value:\n", format(qcov[[1]],digit = 3), "(", 1-qcut, ")"),
-				     hjust = 0, x = qcov[[1]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
-	hist_tif = paste(res_dir, db_name, sg_name, "single_quantile_cutoff.tiff", sep = "_")
+if (FALSE) {
+	cat("Generate histogram plot of signature score\n")
+	title = paste(db_name, sg_name, sep = "  ")
+	sc_hist = ggplot(sub_scres, aes(x=gpvalue)) + 
+		geom_histogram(color="darkblue", fill="lightblue", binwidth = 0.02) +
+		labs(title=title, x=hist_xlab, y = "Count") + 
+		theme_classic()
+	sc_hist_bld = ggplot_build(sc_hist)
+	sc_hist_data = sc_hist_bld$data[[1]]
+	zero_x = sc_hist_data[sc_hist_data$count == 0,"x"]
+	right_zero_count = sum(sc_hist_data[sc_hist_data$x>=zero_x[1],"count"])
+	# print(right_zero_count)
+	sc_hist = sc_hist + geom_vline(xintercept = zero_x[1], size = 1, colour = "grey",linetype = "dashed")
+	if (gp_app == "oneqcut") {
+		cat("Group the patient by one quantile cutoff: ", qcut,"\n")
+		qcov = quantile(sub_scres$gpvalue, c(1-qcut)) # quantile cutoff value
+		# Add line for cutoff value
+		sc_hist = sc_hist + 
+			geom_vline(xintercept = qcov[[1]], size = 1, colour = "purple",linetype = "dotdash")
+		sc_hist = sc_hist + annotate("text", label = paste("Single cutoff value:\n", format(qcov[[1]],digit = 3), "(", 1-qcut, ")"),
+					     hjust = 0, x = qcov[[1]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
+		hist_tif = paste(res_dir, db_name, sg_name, "single_quantile_cutoff.tiff", sep = "_")
 
+	}
+	if (gp_app == "symqcut") {
+		cat("Group the patient by one quantile cutoff with symmetric manner: ", qcut,"\n")
+
+		qcov = quantile(sub_scres$gpvalue, c(qcut, 1-qcut)) # quantile cutoff value
+
+		# Add line for cutoff value
+		sc_hist = sc_hist + 
+			geom_vline(xintercept = qcov[[1]], size = 1, colour = "purple",linetype = "dotdash")
+		sc_hist = sc_hist + annotate("text", label = paste("Left cutoff value:\n", format(qcov[[1]],digit = 3), "(", qcut, ")"),
+					     hjust = 0, x = qcov[[1]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
+		sc_hist = sc_hist + 
+			geom_vline(xintercept = qcov[[2]], size = 1, colour = "purple",linetype = "dotdash")
+		sc_hist = sc_hist + annotate("text", label = paste("Right cutoff value:\n", format(qcov[[2]],digit = 3), "(", 1-qcut, ")"),
+					     hjust = 0, x = qcov[[2]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
+		hist_tif = paste(res_dir, db_name, sg_name, "symmetric_quantile_cutoff.tiff", sep = "_")
+	}
+
+	sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_zero_count[1], 
+							   "\n Percentile:", format(right_zero_count[1]/dim(sub_scres)[1]*100, digit = 4)), 
+			 x = zero_x[1], y = max(sc_hist_data$count), size = 4.5, colour = "black")
+	ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in", device = "tiff")
 }
-if (gp_app == "symqcut") {
-	cat("Group the patient by one quantile cutoff with symmetric manner: ", qcut,"\n")
-
-	qcov = quantile(sub_scres$gpvalue, c(qcut, 1-qcut)) # quantile cutoff value
-
-	# Add line for cutoff value
-	sc_hist = sc_hist + 
-		geom_vline(xintercept = qcov[[1]], size = 1, colour = "purple",linetype = "dotdash")
-	sc_hist = sc_hist + annotate("text", label = paste("Left cutoff value:\n", format(qcov[[1]],digit = 3), "(", qcut, ")"),
-				     hjust = 0, x = qcov[[1]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
-	sc_hist = sc_hist + 
-		geom_vline(xintercept = qcov[[2]], size = 1, colour = "purple",linetype = "dotdash")
-	sc_hist = sc_hist + annotate("text", label = paste("Right cutoff value:\n", format(qcov[[2]],digit = 3), "(", 1-qcut, ")"),
-				     hjust = 0, x = qcov[[2]], y = max(sc_hist_data$count)*0.96, size = 4.5, colour = "black")
-	hist_tif = paste(res_dir, db_name, sg_name, "symmetric_quantile_cutoff.tiff", sep = "_")
-}
-
-sc_hist = sc_hist + annotate("text", label = paste("Right side counts:", right_zero_count[1], 
-						   "\n Percentile:", format(right_zero_count[1]/dim(sub_scres)[1]*100, digit = 4)), 
-		 x = zero_x[1], y = max(sc_hist_data$count), size = 4.5, colour = "black")
-ggsave(sc_hist, file = hist_tif, width = 9, height = 6, units = "in", device = "tiff")
-
 #################################################################################
 ## Assign survival data
 cat("Extract survival and treatment information from clinical data to subtype sig.score data frame\n")
@@ -411,25 +415,20 @@ sub_scres$ose = 0
 sub_clin = sub_clin[sub_clin$pid %in% sub_scres$pid,]
 # print(head(sub_clin))
 # print(dim(sub_clin))
-
+sub_clin = sub_clin[sub_clin$ost != "--",]
 # For overall survival
-sub_scres[sub_clin$pid,"ost"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"ost"]
-sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"ose"]
+sub_scres$ost = sub_clin$ost[match(sub_scres$pid, sub_clin$pid)]
+sub_scres$ose = sub_clin$ose[match(sub_scres$pid, sub_clin$pid)]
+sub_scres$ost = as.numeric(as.character(sub_scres$ost))
+sub_scres$ose = as.numeric(as.character(sub_scres$ose))
+
 # For disease-free survival
 
 # For treatment type
-if(db_name != "tcga_brca") {
-	sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
-	sub_scres[sub_clin$pid,"RT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"RT"]
-	sub_scres[sub_clin$pid,"HT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"HT"]
-	sub_scres$ct[sub_scres$CT == "NO/NA"] = "NO"
-	sub_scres$rt[sub_scres$RT == "NO/NA"] = "NO"
-	sub_scres$ht[sub_scres$HT == "NO/NA"] = "NO"
-}
 
 
 
-
+sub_scres = sub_scres[!is.na(sub_scres$ost),]
 ## Add all the other factors
 
 
@@ -473,6 +472,14 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 }
 #################################################################################
 ## Assign groups
+if (gp_app == "oneqcut") {
+	cat("Group the patient by one quantile cutoff: ", qcut,"\n")
+	qcov = quantile(sub_scres$gpvalue, c(1-qcut)) # quantile cutoff value
+}		
+if (gp_app == "symqcut") {
+	cat("Group the patient by one quantile cutoff with symmetric manner: ", qcut,"\n")
+	qcov = quantile(sub_scres$gpvalue, c(qcut, 1-qcut)) # qua
+}
 if (length(qcov) == 1) {
 	sub_scres$group = "Medium"
 	sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
@@ -493,5 +500,5 @@ if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 
 
 #################################################################################
-survana(data = sub_scres, type = "os", plot = res_dir, gptype = gptype, 
-	cox = res_dir, multicox = FALSE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)
+survana(data = sub_scres, plot = res_dir, gptype = gptype, 
+	cox = res_dir, multicox = FALSE, coxfac = c("age","tsize","grade", "node_stat"))
