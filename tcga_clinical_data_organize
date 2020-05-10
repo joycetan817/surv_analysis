@@ -1,0 +1,26 @@
+###organize clinical.tsv from TCGA 
+###Jiayi Tan
+###05/09/2020
+library(stringr)
+
+data_dir = "Y:/Joyce/TCGA/"
+organ = "lung"
+db_name = paste("tcga_", organ, sep = "")
+clinical = read.table(file = paste(data_dir, db_name, "/clinical.tsv", sep = ""), sep = '\t', header = TRUE)
+clinical = clinical[,colSums(clinical=="--")<nrow(clinical)]
+clinical$case_id = NULL
+clinical$submitter_id = str_replace_all(clinical$submitter_id, "-", ".")
+colnames(clinical)[1] = "pid"
+clinical = clinical[!duplicated(clinical$pid),]
+
+clinical$ost = 0
+clinical$ose = 0
+
+clinical$days_to_death = as.numeric(as.character(clinical$days_to_death))
+clinical$days_to_last_follow_up = as.numeric(as.character(clinical$days_to_last_follow_up))
+
+clinical$ost = ifelse(clinical$vital_status == "Alive", clinical$days_to_last_follow_up ,  clinical$days_to_death)
+
+clinical$ose[clinical$vital_status == "Dead"] = 1
+
+write.csv(clinical, paste(data_dir, db_name, "/clinical_v2.csv", sep = ""))
