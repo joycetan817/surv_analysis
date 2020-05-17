@@ -4,7 +4,7 @@
 library(stringr)
 
 data_dir = "Y:/Joyce/TCGA/"
-organ = "lung"
+organ = "melanoma"
 db_name = paste("tcga_", organ, sep = "")
 clinical = read.table(file = paste(data_dir, db_name, "/clinical.tsv", sep = ""), sep = '\t', header = TRUE)
 clinical = clinical[,colSums(clinical=="--")<nrow(clinical)]
