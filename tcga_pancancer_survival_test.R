@@ -113,14 +113,14 @@ sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
 selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 log2_trans = TRUE #use log2 transformation data or not
-mutation_corr = TRUE
-subtype = "lung"
+mutation_corr = FALSE
+#subtype = "lung"
 
 
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
 sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with signatures and corresponding results
 
-mutation_file = paste(work_dir, "mutation/", subtype, "_varscan/", sep = "")
+#mutation_file = paste(work_dir, "mutation/", subtype, "_varscan/", sep = "")
 
 if (organ == "melanoma") {
 	if (log2_trans) {
@@ -133,15 +133,19 @@ if (organ == "melanoma") {
 }
 	
 #expr_file = "tcga_brca_log2trans_fpkm_uq_v2.RDS" # Expression file
-clin_csv = "clinical_v2.csv" # clinical information with merged disease-free survival 
+clin_csv = "clinical_v2_lusc.csv" # clinical information with merged disease-free survival 
 annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 
 
 #sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
-sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
+#sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
 #sign_file = "tex_signature_tirosh.txt"
 #sign_file = "tex_signature_schumacher.txt"
+#sign_file = "amit_melanoma_logfc1.txt" # Signature file Colt's Tex
+sign_file = "tex_guo_lung.txt" # Signature file Colt's Tex
+
+
 
 
 
@@ -152,9 +156,9 @@ Tstageoi = 0 #c("T3", "T4") # T stage of interest : T1/T2/T3/T4
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
-gp_gene = "CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
-corr_gene = ""#c("CD274", "CD8A") #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
+corr_gene = c("CD274", "CD8A") #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "Tex sig.score"
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
 cox_reg = FALSE
@@ -163,7 +167,7 @@ group_in_priMarker = FALSE ##second group strata within the primary gene marker 
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_CD8A_Tex_tcga_lung_total_log2_trans_v2_mut" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_tex_esophagus_tcga_lusc_log2_trans_v2" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -489,8 +493,9 @@ if (mutation_corr) {
 		        cor.coef = TRUE, # Add correlation coefficient.
 		        cor.coeff.args = list(method = "pearson", size = 4.5, label.sep = "\n") #label.x = 3,
 			   )
-	g = g +  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
-                           labels = trans_format("log10", math_format(10^.x)))
+	g = g +  scale_y_continuous(trans = log2_trans(),
+                               breaks = trans_breaks("log2", function(x) 2^x),
+                               labels = trans_format("log2", math_format(2^.x)))
 	g = g + theme_classic()+theme(axis.text=element_text(size=14, color = "#000000"),
                            axis.title=element_text(size=14))+xlab("Tex sig.score")+ylab("Total mutation burden")
 	ggsave(g, file = paste(res_dir, "tex_mutation_corr_scat.tiff", sep = ""), width = 5, height= 5)
