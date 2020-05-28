@@ -105,7 +105,7 @@ suppressMessages(library(Hmisc))
 #################################################################################
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
 work_dir = "//Bri-net/citi/Peter Lee Group/Joyce/TCGA/"
-organ = "prostate"
+organ = "lung"
 db_name = paste("tcga_", organ, sep = "")
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
@@ -113,19 +113,22 @@ sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 #expr_type = "" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
 selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 log2_trans = TRUE #use log2 transformation data or not
+mutation_corr = TRUE
+subtype = "lung"
 
 
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
 sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with signatures and corresponding results
 
+mutation_file = paste(work_dir, "mutation/", subtype, "_varscan/", sep = "")
 
 if (organ == "melanoma") {
 	if (log2_trans) {
-		expr_file = paste(organ, "_Primary_Tumor_Metastatic_FPKM-UQ_merged_tcga_log2_trans.RDS", sep = "")
+		expr_file = paste(organ, "_Primary_Tumor_Metastatic_FPKM-UQ_merged_tcga_log2_trans_v2.RDS", sep = "")
 	} else {expr_file = paste(organ, "_Primary_Tumor_Metastatic_FPKM-UQ_merged_tcga.RDS", sep = "")}
 } else {
 	if (log2_trans) {
-		expr_file = paste(organ, "_Primary_Tumor_FPKM-UQ_merged_tcga_log2_trans.RDS", sep = "")
+		expr_file = paste(organ, "_Primary_Tumor_FPKM-UQ_merged_tcga_log2_trans_v2.RDS", sep = "")
 	} else {expr_file = paste(organ, "_Primary_Tumor_FPKM-UQ_merged_tcga.RDS", sep = "")}
 }
 	
@@ -147,20 +150,20 @@ gdoi = 0 #c(1) # Grade of interest: 1/2/3
 stageoi = 0 # Stage of interest: 1/2/3/4
 Tstageoi = 0 #c("T3", "T4") # T stage of interest : T1/T2/T3/T4
 sig_save = FALSE
-gp_app = "oneqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
-qcut = 0.5 #0.25 # This is TOP quantile for oneqcut approach
+gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
+qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_gene = ""#c("CD274", "CD8A") #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
-gptype = "CD8A"
+gptype = "Tex sig.score"
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
 cox_reg = FALSE
-group_in_priMarker = TRUE ##second group strata within the primary gene marker group
+group_in_priMarker = FALSE ##second group strata within the primary gene marker group
 
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym50_CD8_tex_log2_trans_tcga_prostate_test" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_CD8A_Tex_tcga_lung_total_log2_trans_v2_mut" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -442,12 +445,12 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 
     for (ig in 1:length(corr_gene)) { cat("Generate scatter plot of correlation between sig.score and", corr_gene[ig], "\n")
 		scat_cor <- ggscatter(sub_corr, x = "sig_score", y = corr_gene[ig], # genes correlate with sig.score
-		    color = "black", fill="darkgray",shape = 21, size = 2, xlim=c(13,22),
+		    color = "black", fill="darkgray",shape = 21, size = 2, #xlim=c(3,5),
 	        add = "reg.line",  # Add regressin line
 	        add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
 	        conf.int = TRUE, # Add confidence interval
 	        cor.coef = TRUE, # Add correlation coefficient.
-	        cor.coeff.args = list(method = "pearson", size = 4.5,label.x = 13, label.sep = "\n")
+	        cor.coeff.args = list(method = "pearson", size = 4.5, label.sep = "\n") #label.x = 3,
 		   )
 		g <- scat_cor + theme_classic()+theme(axis.text=element_text(size=14, color = "#000000"),
                            axis.title=element_text(size=14))+xlab("Tex sig.score")
@@ -470,6 +473,44 @@ if (cox_reg) {
 	cox_rds <- paste(res_dir, gptype, "_survana_cox_res.rds", sep="")
 	cat("\t\tP-value from logRank test: ", (prescox$sctest["pvalue"]), "\n") 
 	saveRDS(res.cox, file=cox_rds)
+}
+
+if (mutation_corr) {
+	mut = read.csv(paste(mutation_file, "laml_sampleSummary.csv", sep = ""))
+	mut_corr = mut[,c("Tumor_Sample_Barcode", "total")]
+	mut_corr$CD8A = sub_scres$CD8A[match(mut_corr$Tumor_Sample_Barcode, sub_scres$pid)]
+	mut_corr$Tex = sub_scres$sig_score[match(mut_corr$Tumor_Sample_Barcode, sub_scres$pid)]
+	mut_corr = mut_corr[!is.na(mut_corr$CD8A),]
+	g <- ggscatter(mut_corr, x = "Tex", y = "total", # genes correlate with sig.score
+			    color = "black", fill="darkgray",shape = 21, size = 2, #xlim=c(3,5),
+		        add = "reg.line",  # Add regressin line
+		        add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+		        conf.int = TRUE, # Add confidence interval
+		        cor.coef = TRUE, # Add correlation coefficient.
+		        cor.coeff.args = list(method = "pearson", size = 4.5, label.sep = "\n") #label.x = 3,
+			   )
+	g = g +  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
+                           labels = trans_format("log10", math_format(10^.x)))
+	g = g + theme_classic()+theme(axis.text=element_text(size=14, color = "#000000"),
+                           axis.title=element_text(size=14))+xlab("Tex sig.score")+ylab("Total mutation burden")
+	ggsave(g, file = paste(res_dir, "tex_mutation_corr_scat.tiff", sep = ""), width = 5, height= 5)
+
+	g <- ggscatter(mut_corr, x = "CD8A", y = "total", # genes correlate with sig.score
+			    color = "black", fill="darkgray",shape = 21, size = 2, #xlim=c(3,5),
+		        add = "reg.line",  # Add regressin line
+		        add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+		        conf.int = TRUE, # Add confidence interval
+		        cor.coef = TRUE, # Add correlation coefficient.
+		        cor.coeff.args = list(method = "pearson", size = 4.5, label.sep = "\n") #label.x = 3,
+			   )
+	g = g + scale_y_continuous(trans = log2_trans(),
+                               breaks = trans_breaks("log2", function(x) 2^x),
+                               labels = trans_format("log2", math_format(2^.x)))
+	g = g + theme_classic()+theme(axis.text=element_text(size=14, color = "#000000"),
+                           axis.title=element_text(size=14))+xlab("CD8A")+ylab("Total mutation burden")
+	ggsave(g, file = paste(res_dir, "cd8_mutation_corr_scat.tiff", sep = ""), width = 5, height = 5)
+
+
 }
 
 
