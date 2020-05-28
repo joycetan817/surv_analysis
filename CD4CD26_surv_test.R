@@ -4,7 +4,7 @@
 # Jiayi Tan
 # 07/01/2019
 
-rm(list = ls(all.names = TRUE))
+#rm(list = ls(all.names = TRUE))
 
 survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "", 
 		    cox = "", coxfac = c("age","grade","tsize","node_stat"), multicox = TRUE, gdoi = 0) {
@@ -70,23 +70,22 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 	if (plot != "") {
 		surv_plot <- paste(plot, lab, gptype, "_survana_curves.tiff", sep="")
 		survcurv <- ggsurvplot(fit, data = surv_data,
-				       xlim = c(0,10000), ylim = c(0.00, 1.00),
-				       pval = TRUE, pval.size = 6, pval.coord = c(0, 0.2),
-				       conf.int = TRUE, conf.int.alpha = 0.2,
-				       xlab = "Time (days)", ylab = lab, legend.title = gptype,
-				       legend.labs = c("High", "Low"),
+				       xlim = c(0,11000), ylim = c(0.00, 1.00),
+				       pval = TRUE, pval.size = 6, pval.coord = c(7500, 0.1),
+				       conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
+				       xlab = "Time (days)", ylab = lab, legend.title = "",
+				       legend.labs = c(paste("High, n =", numh), paste("Low, n =", numl)), legend = c(0.15,0.15),
 #                                      surv.median.line = "hv",
 				       ggtheme = theme_classic(),
-				       palette = c("#E7B800", "#2E9FDF"), 
+				       palette = c("#D15466", "#0A9CC7"), 
 				       font.x = c(14, "bold"), font.y = c(18, "bold"), 
-				       font.tickslab = c(16, "plain"), font.legend = c(18, "bold"),
+				       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
 				       risk.table = FALSE, ncensor.plot = FALSE)
-		note_on_plot <- paste("nHigh = ", numh, "\t", "nLow = ", numl, "\t")
-		survcurv$plot <- survcurv$plot + annotate("text", x=2000, y=0.1, label=note_on_plot, size = 6)
+		#note_on_plot <- paste("nHigh = ", numh, "\t", "nLow = ", numl, "\t")
+		#survcurv$plot <- survcurv$plot + annotate("text", x=2000, y=0.1, label=note_on_plot, size = 6)
 		ggsave(surv_plot, plot = survcurv$plot, dpi = 120, width = 9, height = 6, units = 'in')
 	}
 }
-
 
 # Extract single gene expression from expression data to subtype sig.score data frame
 singene_expr = function (gene, expr, annot, subdf, caltype = "mean", map = TRUE) {
@@ -155,10 +154,10 @@ work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
 db_name = "metabric"
 #db_name = "tcga_brca"
 #sg_name = "loi_trm" # Loi's TRM sig
-sg_name = "CD26_test" # Colt's Tex sig from breast tissue c2
+sg_name = "CD26_update_0417" # Colt's Tex sig from breast tissue c2
 #sg_name = "mamma" # mamma sig
-expr_type = "ilid" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
-selfmap = TRUE # NOTE: ilid/tcga require this as TRUE; median as FALSE
+expr_type = "median" # ilid: raw data from EGA, median: raw median data from cbioportal, medianz: zscore from cbioportal
+selfmap = FALSE # NOTE: ilid/tcga require this as TRUE; median as FALSE
 
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
@@ -182,7 +181,7 @@ annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 #sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
 #sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 #sign_file = "cluster0_t_pca9_15_ER_raw_v1.txt"
-sign_file = "CD4CD26_all_c5_v1.txt"
+sign_file = "cd26_c1_all_tumor_v1.txt"
 #sign_file = "tumor_ln_imputated_tl_v1.txt"
 #sign_file = "tumor_ln_normal_pbmc_abc_v1.txt"
 #sign_file = "tumor_ln_normal_pbmc_raw_v1.txt"
@@ -194,11 +193,11 @@ sign_file = "CD4CD26_all_c5_v1.txt"
 histype = "IDC" # histology type: IDC/DCIS
 pamst = ""#c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
-hrtype = c("P", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
+hrtype = ""#c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
-gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+gp_gene = "CD4" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score AE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "CD4CD26 sig.score"
 corr_gene = "" #c("CD8A", "CD3G", "ITG
@@ -208,7 +207,7 @@ trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_CD26_c5_ER_IDC_ega" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym25_CD4_IDC_cbpt" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -221,8 +220,8 @@ file.copy(paste(script_dir, script_name, sep = ""), res_dir)
 cat("Loading expression data...\n")
 st = Sys.time()
 ## Please use either the full path of the file or change the work directory here
-#expr = readRDS(paste(data_dir, expr_file, sep = ""))
-expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
+expr = readRDS(paste(data_dir, expr_file, sep = ""))
+#expr = readRDS("metabric_expr_ilid.RDS") # When test the script using metabric
 #expr = readRDS("tcga_brca_log2trans_fpkm_uq_v2.RDS") # When test the script using tcga
 #expr = readRDS("data_expression_median.RDS") # When test the script using cBioportal
 #expr = readRDS("tcga_portal_data_expr_v2.RDS")
@@ -247,9 +246,9 @@ if (FALSE) {
 	cat("Save the clinical information to ", rds_file, "\n")
 	q(save = "no")
 }
-#clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
+clin_info = readRDS(paste(data_dir, clin_rds, sep = ""))
 #clin_info = read_excel("1018_tcga_pam50_clin_rsem.xlsx", sheet = 1)
-clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
+#clin_info = readRDS("merge_clin_info_v3.RDS") # When test the script
 #clin_info = read_excel("tcga_portal_clin_info_v2.xlsx", sheet= 1 )
 #clin_info = read_excel("07212019_tcga_clinical_info_early.xlsx", sheet = 1)
 #clin_info = read_excel("08272019_tcga_pam50_clin.xlsx", sheet = 1)
@@ -391,7 +390,7 @@ if (selfmap) {
 	cat("Annotation data dimension, probe: annot ", dim(ssannot), "\n")
 	print(head(ssannot))
 
-	sign_gene = toupper(rownames(sign))  
+	sign_gene = rownames(sign)
 	cat("Signature gene number: ", length(sign_gene),"\n")
 	anno_gene = rownames(expr)
 	ol_gene = intersect(sign_gene, anno_gene)
