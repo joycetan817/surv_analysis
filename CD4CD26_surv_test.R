@@ -197,20 +197,20 @@ gdoi = 0 #c(1) # Grade of interest: 1/2/3
 hrtype = c("P", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
-qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
-gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+qcut = 0.5 #0.25 # This is TOP quantile for oneqcut approach
+gp_gene = "CD4" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score AE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "CD4CD26 sig.score"
 corr_gene = "" #c("CD8A", "CD3G", "ITG
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
-strata = 1
-group_in_priMarker = FALSE
+strata = 2
+group_in_priMarker = TRUE
 
 
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_CD4CD26_ER_IDC_cbpt_test" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym50_CD4_CD26_ER_IDC_cbpt_test" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
