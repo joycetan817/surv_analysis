@@ -96,6 +96,9 @@ suppressMessages(library(survminer))
 suppressMessages(library(corrplot))
 suppressMessages(library(ggpubr))
 suppressMessages(library(Hmisc))
+suppressMessages(library(survMisc))
+suppressMessages(library(scales))
+
 # Personally prefer to having a independent section for all the parameters or variables
 # which may be tuned for different inputs and tasks
 
@@ -104,8 +107,8 @@ suppressMessages(library(Hmisc))
 
 #################################################################################
 # work_dir = "/home/weihua/mnts/group_plee/Weihua/surv_validation/" # working directory/path for survival validation
-work_dir = "//Bri-net/citi/Peter Lee Group/Joyce/TCGA/"
-organ = "lung"
+work_dir = "//Bri-net/citi/Peter Lee Group/Joyce/TCGA_pancancer/"
+organ = "liver"
 db_name = paste("tcga_", organ, sep = "")
 #sg_name = "loi_trm" # Loi's TRM sig
 sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
@@ -114,13 +117,13 @@ sg_name = "tex_brtissue" # Colt's Tex sig from breast tissue c2
 selfmap = TRUE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 log2_trans = TRUE #use log2 transformation data or not
 mutation_corr = FALSE
-#subtype = "lung"
+subtype = "" 
 
 
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
 sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with signatures and corresponding results
 
-#mutation_file = paste(work_dir, "mutation/", subtype, "_varscan/", sep = "")
+mutation_file = paste(work_dir, "mutation/", subtype, "_varscan/", sep = "")
 
 if (organ == "melanoma") {
 	if (log2_trans) {
@@ -133,19 +136,32 @@ if (organ == "melanoma") {
 }
 	
 #expr_file = "tcga_brca_log2trans_fpkm_uq_v2.RDS" # Expression file
-clin_csv = "clinical_v2_lusc.csv" # clinical information with merged disease-free survival 
+if (organ == "lung") {
+	if (subtype == "lusc"){
+		clin_csv = "clinical_v2_lusc.csv"
+	}
+	if (subtype == "luad"){
+		clin_csv = "clinical_v2_luad.csv"
+	}
+} else {clin_csv = "clinical_v2.csv"}
+
 annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 
 
 #sign_file = "loi_trm_signature.txt" # Signature file Loi's TRM
-#sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
+sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 #sign_file = "mamma_signature_v1.txt" # Signature file mamma
 #sign_file = "tex_signature_tirosh.txt"
 #sign_file = "tex_signature_schumacher.txt"
 #sign_file = "amit_melanoma_logfc1.txt" # Signature file Colt's Tex
-sign_file = "tex_guo_lung.txt" # Signature file Colt's Tex
-
-
+#sign_file = "tex_guo_lung.txt" # Signature file Colt's Tex
+#sign_file = "cd26_c1_all_tumor_v1.txt"
+#sign_file = "tcf1_fc25_all_tumor_wt377_0420_cbpt.txt"
+#sign_file = "gene_signature_matrix.txt"
+#sign_file = "proliferative_gene_immunity.txt"
+#chemokine_file = 'chemokine_filter.txt'
+#chemokine_gene = read.table(paste(sign_dir, chemokine_file, sep = ""), header = TRUE, row.names = 1)
+#corr_gene = rownames(chemokine_gene)
 
 
 
@@ -153,21 +169,25 @@ sign_file = "tex_guo_lung.txt" # Signature file Colt's Tex
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
 stageoi = 0 # Stage of interest: 1/2/3/4
 Tstageoi = 0 #c("T3", "T4") # T stage of interest : T1/T2/T3/T4
+histype = "IDC"
+hrtype = ""#c("P", "-", "-")# N: Negative, P: Positive, "-": DON'T CARE
+ms_type = "" # MSI/MSS for CRC 
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
-qcut = 0.25 #0.25 # This is TOP quantile for oneqcut approach
+qcut = 0.5 #0.25 # This is TOP quantile for oneqcut approach
 gp_gene = "" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
-corr_gene = c("CD274", "CD8A") #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
+corr_gene = c("HLA-A", "HLA-B", "HLA-C","FCGR3A","NCAM1","CD4") #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 gptype = "Tex sig.score"
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
-cox_reg = FALSE
+cox_reg = TRUE
 group_in_priMarker = FALSE ##second group strata within the primary gene marker group
+optimal_cutoff = FALSE
 
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym25_tex_esophagus_tcga_lusc_log2_trans_v2" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym50_tex_liver_log2_tcga" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -225,6 +245,70 @@ if (Tstageoi != 0) {
 	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
 
 }
+if (organ == "breast") {
+	if (histype !=  "") {
+	# For IDC
+	sub_clin = sub_clin[sub_clin[,"oncotree_code"] == histype,]
+	#sub_clin = sub_clin[sub_clin[,"Oncotree.Code"] %in% histype,]
+	sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+	}
+	if (hrtype != "") {
+			if (length(hrtype) != 3) {stop("Not enough info for hormone receptor status!!!")}
+			cat("\tER: ", hrtype[1], "\n")
+			if (hrtype[1] == "P") {
+				sub_clin = sub_clin[sub_clin$ER.Expr == "+",]
+				sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+			}
+			if (hrtype[1] == "N") {
+				sub_clin = sub_clin[sub_clin$ER.Expr == "-",]
+				sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+			}
+			cat("\t\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+
+			cat("\tPR: ", hrtype[2], "\n")
+			if (hrtype[2] == "P") {
+				sub_clin = sub_clin[sub_clin$PR.Expr == "+",]
+				sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+			}
+			if (hrtype[2] == "N") {
+				sub_clin = sub_clin[sub_clin$PR.Expr == "-",]
+				sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+			}
+			cat("\t\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+
+			cat("\tHer2: ", hrtype[3], "\n")
+			if (hrtype[3] == "P") {
+				sub_clin = sub_clin[sub_clin$Her2.Expr == "+",]
+				sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+			}
+			if (hrtype[3] == "N") {
+				sub_clin = sub_clin[sub_clin$Her2.Expr == "-",]
+				sub_clin = sub_clin[complete.cases(sub_clin$pid),]
+			}
+			cat("\t\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+	}
+}
+
+if (organ == "kidney") {
+	if (subtype != "") {
+		sub_clin = subset(sub_clin, project_id %in% paste("TCGA-", subtype, sep = ""))
+		cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+
+	}
+}
+
+
+if (organ == 'crc') {
+	if (ms_type == 'MSI') {
+		sub_clin = subset(sub_clin, MSI_MSS == 'MSI')
+	}
+	if (ms_type == 'MSS') {
+		sub_clin = subset(sub_clin, MSI_MSS == 'MSS')
+	}
+	cat("\tFiltered patient number: ", dim(sub_clin)[1], "\n")
+}
+
 
 if (dim(sub_clin)[1] <= 3) {stop("TOO SMALL SAMPLE SIZE!!!")}
 
@@ -402,7 +486,6 @@ cat("Extract survival and treatment information from clinical data to subtype si
 sub_scres$ost = 0
 sub_scres$ose = 0
 
-
 sub_clin = sub_clin[sub_clin$pid %in% sub_scres$pid,]
 # print(head(sub_clin))
 # print(dim(sub_clin))
@@ -427,7 +510,7 @@ sub_scres = sub_scres[!is.na(sub_scres$ost),]
 print(dim(sub_scres))
 # print(dim(sub_clin))
 # q(save = "no")
-
+#stop()
 #################################################################################
 # Add correlation gene expressions SEPERATIVELY
 if(corr_gene != "") { cat("Extract gene expression from expression data to subtype sig.score data frame for correlation...\n")
@@ -435,7 +518,7 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	for (ig in 1:length(corr_gene)) {
 		sub_corr = singene_expr(gene = corr_gene[ig], expr = expr, annot = annot, subdf = sub_corr, map = selfmap)
 	}
-
+stop()
 	cat("Run correlation analysis between sig.score and other genes\n")
 	sub_corr$pid = NULL
 	sub_cor = as.matrix(sub_corr)
@@ -449,9 +532,9 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 
     for (ig in 1:length(corr_gene)) { cat("Generate scatter plot of correlation between sig.score and", corr_gene[ig], "\n")
 		scat_cor <- ggscatter(sub_corr, x = "sig_score", y = corr_gene[ig], # genes correlate with sig.score
-		    color = "black", fill="darkgray",shape = 21, size = 2, #xlim=c(3,5),
-	        add = "reg.line",  # Add regressin line
-	        add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+		   color = "darkgray", fill="darkgray",shape = 21, size = 2,
+	  		add = "reg.line",  # Add regressin line
+	   		add.params = list(color = "black", fill = "lightgray"),
 	        conf.int = TRUE, # Add confidence interval
 	        cor.coef = TRUE, # Add correlation coefficient.
 	        cor.coeff.args = list(method = "pearson", size = 4.5, label.sep = "\n") #label.x = 3,
@@ -463,8 +546,6 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 	}
 
 }
-#################################################################################
-## Assign groups
 
 if (cox_reg) {
 	cat("\tSingle-variant Cox analysis with ", gptype, "\n")
@@ -478,6 +559,7 @@ if (cox_reg) {
 	cat("\t\tP-value from logRank test: ", (prescox$sctest["pvalue"]), "\n") 
 	saveRDS(res.cox, file=cox_rds)
 }
+
 
 if (mutation_corr) {
 	mut = read.csv(paste(mutation_file, "laml_sampleSummary.csv", sep = ""))
@@ -501,9 +583,9 @@ if (mutation_corr) {
 	ggsave(g, file = paste(res_dir, "tex_mutation_corr_scat.tiff", sep = ""), width = 5, height= 5)
 
 	g <- ggscatter(mut_corr, x = "CD8A", y = "total", # genes correlate with sig.score
-			    color = "black", fill="darkgray",shape = 21, size = 2, #xlim=c(3,5),
-		        add = "reg.line",  # Add regressin line
-		        add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+		        color = "darkgray", fill="darkgray",shape = 21, size = 2,
+		  		add = "reg.line",  # Add regressin line
+		   		add.params = list(color = "black", fill = "lightgray"),
 		        conf.int = TRUE, # Add confidence interval
 		        cor.coef = TRUE, # Add correlation coefficient.
 		        cor.coeff.args = list(method = "pearson", size = 4.5, label.sep = "\n") #label.x = 3,
@@ -517,37 +599,61 @@ if (mutation_corr) {
 
 
 }
+stop()
+##########################################################################
+## Assign groups
 
+if (optimal_cutoff) {
 
+	res.cox <- coxph(Surv(ost, ose) ~ gpvalue, data=sub_scres)
+	res.cox <- cutp(res.cox)$gpvalue
+	data.table::setorder(res.cox, "gpvalue")
+	cutp_res <-(res.cox)[,"U"]
+	colnames(cutp_res)[1] = "test_score"
+	cutp_res$cutoff <- as.numeric(rownames(cutp_res))
+	g <- ggplot(cutp_res, aes(cutoff, test_score)) + geom_col() + labs(y = "log-rank test score") + theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank())
+	g <- g + geom_vline(xintercept = cutp_res$cutoff[cutp_res$test_score == max(cutp_res$test_score)], size = 0.5, colour = "red",linetype = "dotdash")
+	max_cutoff = res.cox$gpvalue[res.cox$U == max(res.cox$U)]
 
+	print(max_cutoff)
 
-if (gp_app == "oneqcut") {
-	cat("Group the patient by one quantile cutoff: ", qcut,"\n")
-	qcov = quantile(sub_scres$gpvalue, c(1-qcut)) # quantile cutoff value
-}		
-if (gp_app == "symqcut") {
-	cat("Group the patient by one quantile cutoff with symmetric manner: ", qcut,"\n")
-	qcov = quantile(sub_scres$gpvalue, c(qcut, 1-qcut)) # qua
-}
-if (length(qcov) == 1) {
-	sub_scres$group = "Medium"
-	sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
-	sub_scres[sub_scres$gpvalue > qcov[[1]],"group"] = "High"
-	surv_csv = paste(res_dir, "single_qcut_survival_analysis_inputs.csv")
+	ggsave(g, file = paste(res_dir, "log_rank_cutp_plot.tiff", sep = ""),  dpi = 300, width = 9, height = 6, units = "in", device = "tiff")
+
+	sub_scres$group="High"
+	sub_scres$group[sub_scres$gpvalue < max_cutoff]="Low"
+	surv_csv = paste(res_dir, "optimal_cutoff_survival_analysis_inputs.csv")
 	write.csv(sub_scres, file = surv_csv)
-}
-if (length(qcov) == 2) {
-	sub_scres$group = "Medium"
-	sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"
-	sub_scres[sub_scres$gpvalue >= qcov[[2]],"group"] = "High"
-	surv_csv = paste(res_dir, "symmetric_qcut_survival_analysis_inputs.csv")
-	write.csv(sub_scres, file = surv_csv)
-	sub_scres = sub_scres[sub_scres$group != "Medium",]
+
+
+	survana(data = sub_scres, plot = res_dir, gptype = gptype)
+} else {
+	if (gp_app == "oneqcut") {
+		cat("Group the patient by one quantile cutoff: ", qcut,"\n")
+		qcov = quantile(sub_scres$gpvalue, c(1-qcut)) # quantile cutoff value
+	}		
+	if (gp_app == "symqcut") {
+		cat("Group the patient by one quantile cutoff with symmetric manner: ", qcut,"\n")
+		qcov = quantile(sub_scres$gpvalue, c(qcut, 1-qcut)) # qua
 	}
-if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
+	if (length(qcov) == 1) {
+		sub_scres$group = "Medium"
+		sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
+		sub_scres[sub_scres$gpvalue > qcov[[1]],"group"] = "High"
+		surv_csv = paste(res_dir, "single_qcut_survival_analysis_inputs.csv")
+		write.csv(sub_scres, file = surv_csv)
+	}
+	if (length(qcov) == 2) {
+		sub_scres$group = "Medium"
+		sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"
+		sub_scres[sub_scres$gpvalue >= qcov[[2]],"group"] = "High"
+		surv_csv = paste(res_dir, "symmetric_qcut_survival_analysis_inputs.csv")
+		write.csv(sub_scres, file = surv_csv)
+		sub_scres = sub_scres[sub_scres$group != "Medium",]
+		}
+	if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 
-survana(data = sub_scres, plot = res_dir, gptype = gptype)
-
+	survana(data = sub_scres, plot = res_dir, gptype = gptype)
+}
 if (group_in_priMarker) {
 	high = subset(sub_scres, group == "High")
 	low = subset(sub_scres, group == "Low")
