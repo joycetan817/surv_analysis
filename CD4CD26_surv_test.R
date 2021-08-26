@@ -21,7 +21,12 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 		surv_data = data[,c("group" ,"gpvalue" ,"rfst" ,"rfse" , coxfac)]
 		lab = "Relapse-free survival"
 	}
-	
+	if(type == "dmfs") {
+		cat("Analyzing distal metastasis-free survival...\n")
+		surv_data = data[,c("group" ,"gpvalue" ,"dmfs" ,"dmfe" , coxfac)]
+		lab = "Distal Metastasis-free survival"
+	}
+
 	colnames(surv_data)[3:4] <- c("time", "status")
 	surv_data$status = as.numeric(surv_data$status)
 	numh = sum(surv_data$group == "High")
@@ -70,9 +75,12 @@ survana <- function(data, type, gptype = "Sig.score", plot = "", csv = "",
 		write.csv(fit_df, file=surv_rescsv)}
 	if (plot != "") {
 		surv_plot <- paste(plot, lab, gptype, "_survana_curves.tiff", sep="")
+		max_st = max(surv_data$time)
+		xlim_max = ceiling(max_st/1000)*1000
 		survcurv <- ggsurvplot(fit, data = surv_data,
-				       xlim = c(0,11000), ylim = c(0.00, 1.00),
-				       pval = TRUE, pval.size = 6, pval.coord = c(7500, 0.1),
+				       #xlim = c(0,11000),  hrtype is ER+
+				       xlim = c(0,xlim_max), ylim = c(0.00, 1.00),  
+				       pval = TRUE, pval.size = 6, pval.coord = c(xlim_max/4*3, 0.1),
 				       conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
 				       xlab = "Time (days)", ylab = lab, legend.title = "",
 				       legend.labs = c(paste("High, n =", numh), paste("Low, n =", numl)), legend = c(0.15,0.15),
@@ -169,12 +177,14 @@ if (db_name == "metabric") {
 	if (expr_type == "ilid") {expr_file = "metabric_expr_ilid.RDS"}
 	if (expr_type == "median") {expr_file = "data_expression_median.RDS"}
 	if (expr_type == "medianz") {expr_file = "data_mRNA_median_Zscores.RDS"}
-	clin_rds = "merge_clin_info_v3.RDS" # clinical information with merged disease-free survival
+	clin_rds = "merge_clin_info_corrected.RDS" # clinical information with merged disease-free survival
 	annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
 }
 if (db_name == "tcga_brca") {
 #expr_file = "tcga_brca_log2trans_fpkm_uq_v2.RDS" # Expression file
-expr_file = "tcga_brca_expr_rsem_log2trans.RDS"
+#expr_file = "breast_Primary_Tumor_htseq.counts_merged_tcga_v2.RDS"
+expr_file = "tcga_brca_log2trans_fpkm_uq_v2.RDS" # Expression file
+
 clin_rds = "07212019_tcga_clinical_info.RDS" # clinical information with merged disease-free survival 
 annot_file = "gencode.gene.info.v22.xlsx" # Microarray/Genome annotation
 }
@@ -198,9 +208,9 @@ hrtype = c("P", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.5 #0.25 # This is TOP quantile for oneqcut approach
-gp_gene = "CD4" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+gp_gene = "CD3D" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score AE", "STAT1") # Genes need to be correlated with signature scores
-gptype = "CD4CD26 sig.score"
+gptype = ""
 corr_gene = "" #c("CD8A", "CD3G", "ITG
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
 strata = 2
@@ -210,7 +220,7 @@ group_in_priMarker = TRUE
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym50_CD4_CD26_ER_IDC_cbpt_test" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym50_CD3D_CD4CD26_ER_cbpt" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -496,6 +506,8 @@ sub_scres$ost = 0
 sub_scres$ose = 0
 sub_scres$rfst = 0
 sub_scres$rfse = 0
+sub_scres$dmfs = 0
+sub_scres$dmfe = 0
 if(db_name != "tcga_brca") {
 	sub_scres$CT = 0
 	sub_scres$RT = 0
@@ -511,22 +523,48 @@ sub_clin = sub_clin[sub_clin$pid %in% sub_scres$pid,]
 # print(dim(sub_clin))
 
 # For overall survival
-sub_scres[sub_clin$pid,"ost"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"T"]
-sub_scres[sub_clin$pid,"ose"] = as.numeric(sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathBreast"])
+if (db_name == "metabric") {
+	#sub_scres[sub_clin$pid,"ost"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"T"]
+	#sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"DeathBreast"]
+	#sub_scres[sub_clin$pid,"rfst"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"TOR"]
+	#sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
 
+	sub_scres$ost = sub_clin$T[match(sub_scres$pid, sub_clin$pid)]
+	sub_scres$ose = sub_clin$DeathBreast[match(sub_scres$pid, sub_clin$pid)]
+	sub_scres$rfst = sub_clin$TOR[match(sub_scres$pid, sub_clin$pid)]
+	sub_scres$rfse = sub_clin$OR[match(sub_scres$pid, sub_clin$pid)]
+	sub_scres$dmfs = sub_clin$DMFS[match(sub_scres$pid, sub_clin$pid)]
+	sub_scres$dmfe = sub_clin$DMFE[match(sub_scres$pid, sub_clin$pid)]
+
+}
+
+if (db_name == "tcga_brca") {
+	sub_scres$ost=sub_clin$T[match(sub_scres$pid, sub_clin$pid)]
+	sub_scres$ose=sub_clin$DeathBreast[match(sub_scres$pid, sub_clin$pid)]
+
+}
+#sub_scres[sub_clin$pid,"ose"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"ose"]
+sub_scres$ost <- as.numeric(sub_scres$ost)
+sub_scres$ose <- as.numeric(sub_scres$ose)
+sub_scres$dmfs <- as.numeric(sub_scres$dmfs)
+sub_scres$dmfe <- as.numeric(sub_scres$dmfe)
 # For disease-free survival
-sub_scres[sub_clin$pid,"rfst"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"TOR"]
-sub_scres[sub_clin$pid,"rfse"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"OR"]
+
 
 # For treatment type
-if(db_name != "tcga_brca") {
-	sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
-	sub_scres[sub_clin$pid,"RT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"RT"]
-	sub_scres[sub_clin$pid,"HT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"HT"]
-	sub_scres$ct[sub_scres$CT == "NO/NA"] = "NO"
-	sub_scres$rt[sub_scres$RT == "NO/NA"] = "NO"
-	sub_scres$ht[sub_scres$HT == "NO/NA"] = "NO"
+if(FALSE) {
+	if(db_name != "tcga_brca") {
+		sub_scres[sub_clin$pid,"CT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"CT"]
+		sub_scres[sub_clin$pid,"RT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"RT"]
+		sub_scres[sub_clin$pid,"HT"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"HT"]
+		sub_scres$ct[sub_scres$CT == "NO/NA"] = "NO"
+		sub_scres$rt[sub_scres$RT == "NO/NA"] = "NO"
+		sub_scres$ht[sub_scres$HT == "NO/NA"] = "NO"
+	}
 }
+
+
+
 
 if(trt_type != "") { 
 	for (it in 1:length(trt_type)) { cat("Generate sig.score box plot with", trt_type[it], "treatment\n")
@@ -539,10 +577,19 @@ if(trt_type != "") {
 }
 
 ## Add all the other factors
-sub_scres[sub_clin$pid,"age"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"]
-sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
-sub_scres[sub_clin$pid,"tsize"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"]
-sub_scres[sub_clin$pid,"node_stat"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"]
+#sub_scres[sub_clin$pid,"age"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"age_at_diagnosis"]
+#sub_scres[sub_clin$pid,"grade"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"grade"]
+#sub_scres$grade=as.numeric(sub_scres$grade)
+#sub_scres[sub_clin$pid,"tsize"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"tumor_size"]
+#sub_scres$tsize=as.numeric(sub_scres$tsize)
+#sub_scres[sub_clin$pid,"node_stat"] = sub_clin[sub_clin$pid %in% sub_scres$pid,"Lymph.Nodes.Positive"]
+#sub_scres$node_stat=as.numeric(sub_scres$node_stat)
+
+sub_scres$age = sub_clin$age_at_diagnosis[match(sub_scres$pid, sub_clin$pid)]
+sub_scres$grade = sub_clin$grade[match(sub_scres$pid, sub_clin$pid)]
+sub_scres$tsize = sub_clin$tumor_size[match(sub_scres$pid, sub_clin$pid)]
+sub_scres$node_stat = sub_clin$Lymph.Nodes.Positive[match(sub_scres$pid, sub_clin$pid)]
+sub_scres$menopausal_State = sub_clin$Inferred.Menopausal.State[match(sub_scres$pid, sub_clin$pid)]
 
 # print(head(sub_scres))
 print(dim(sub_scres))
@@ -605,8 +652,10 @@ if (length(qcov) > 2) {stop("Mulitple cutoffs!!!")}
 survana(data = sub_scres, type = "os", plot = res_dir, gptype = gptype, 
 	cox = res_dir, multicox = TRUE, coxfac = c("age","tsize","grade", "node_stat"), gdoi = gdoi)
 if (db_name != "tcga_brca") {
-survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = gptype, 
-	cox = res_dir, coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)}
+	survana(data = sub_scres, type = "rfs", plot = res_dir, gptype = gptype, 
+		cox = res_dir, coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
+	survana(data = sub_scres, type = "dmfs", plot = res_dir, gptype = gptype, 
+		cox = res_dir, coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)}
 
 if (strata ==2) {
 
@@ -625,6 +674,8 @@ if (strata ==2) {
 			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
 		survana(data = high, type = "rfs", plot = res_dir, gptype = "CD4high",
 			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
+		survana(data = high, type = "dmfs", plot = res_dir, gptype = "CD4high",
+			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
 
 		low$CD4_group = low$group
 		low$gpvalue = low$sig_score
@@ -636,7 +687,9 @@ if (strata ==2) {
 			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
 		survana(data = low, type = "rfs", plot = res_dir, gptype = "CD4low",
 			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
-
+		survana(data = low, type = "dmfs", plot = res_dir, gptype = "CD4low",
+			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
+		
 		sub_scres = rbind(high, low)
 
 		sub_scres$CD26_group<-sub_scres$group
@@ -682,6 +735,22 @@ if (strata ==2) {
 						       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
 						       risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
 		surv_plot <- paste(res_dir,"rfs_four_survana_cd26group_within_cd4.tiff", sep="")
+		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
+
+		fit <- survfit(Surv(dmfs, dmfe) ~ CD4_group+CD26_group, data=sub_scres)
+		survcurv <- ggsurvplot(fit, data = sub_scres,
+						       xlim = c(0,11000), ylim = c(0.00, 1.00),
+						       pval = TRUE, pval.size = 6, pval.coord = c(7500, 0.1),
+						       conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
+						       xlab = "Time (days)", ylab = "Distal Metastasis-free Survival", legend.title = "",
+						       legend.labs = c(paste("CD4hiCD26hi, n =",numhh), paste("CD4hiCD26lo, n =",numhl) ,paste("CD4loCD26hi, n =",numlh), paste("CD4loCD26lo, n =",numll)),
+		#                                      surv.median.line = "hv",
+						       ggtheme = theme_classic(),
+						       palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
+						       font.x = c(14, "bold"), font.y = c(18, "bold"), 
+						       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
+						       risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
+		surv_plot <- paste(res_dir,"dmfs_four_survana_group_within_cd4.tiff", sep="")
 		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
 
 	} else {
