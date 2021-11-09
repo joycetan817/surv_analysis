@@ -64,7 +64,7 @@ if (strict) {
   ppf <- paste(ppf, "strict_", sep = "")
 }
 cat("Merging all the data...\n")
-use_sign <- sign[sign$gene %in% intersect(sign$gene, expr$gene),]
+use_sign <- sign[sign$gene %in% intersect(sigh$gene, expr$gene),]
 sign_expr <- expr[expr$gene %in% intersect(sign$gene, expr$gene),]
 
 
