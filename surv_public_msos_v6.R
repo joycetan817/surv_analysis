@@ -164,7 +164,7 @@ work_dir = "//Bri-net/citi/Peter Lee Group/Weihua/surv_validation/"
 db_name = "metabric"
 #db_name = "tcga_brca"
 #sg_name = "loi_trm" # Loi's TRM sig
-#sg_name = "tcf1_update_0408" # Colt's Tex sig from breast tissue c2
+#sg_name = "tcf1_update_0408" 
 sg_name = "tex_brtissue" # mamma sig
 #sg_name = "CD26_update_0417"
 
@@ -175,16 +175,13 @@ selfmap = FALSE # NOTE: ilid/tcga requires this as TRUE; median as FALSE
 # data_dir = "/home/weihua/mnts/group_plee/Weihua/metabric_use/" # directory/path for public data
 data_dir = paste(work_dir, db_name, "/", sep = "") # generate the directory with all the public data
 sign_dir = paste(work_dir, sg_name, "/", sep = "") # generate the directory with signatures and corresponding results
-#de_dir = paste(work_dir, de_name, "/", sep = "") # generate the directory with signatures and corresponding results
+#de_dir = paste(work_dir, de_name, "/", sep = "") # generate the directory with signatures and corresponding results","if (db_name == "metabric") {
+if (expr_type == "ilid") {expr_file = "metabric_expr_ilid.RDS"}
+if (expr_type == "median") {expr_file = "data_expression_median.RDS"}
+if (expr_type == "medianz") {expr_file = "data_mRNA_median_Zscores.RDS"}
+clin_rds = "merge_clin_info_corrected.RDS" # clinical information with merged disease-free survival
+annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
 
-
-if (db_name == "metabric") {
-	if (expr_type == "ilid") {expr_file = "metabric_expr_ilid.RDS"}
-	if (expr_type == "median") {expr_file = "data_expression_median.RDS"}
-	if (expr_type == "medianz") {expr_file = "data_mRNA_median_Zscores.RDS"}
-	clin_rds = "merge_clin_info_corrected.RDS" # clinical information with merged disease-free survival
-	annot_file = "HumanHT_12_v30_R3_cleaned_v2.xlsx" # Microarray/Genome annotation
-}
 if (db_name == "tcga_brca") {
 #expr_file = "skcm_rnaseqv2_expr_log2trans.RDS"
 #clin_file = "tcga_clin_skcm_clean_v5.xlsx"
@@ -206,8 +203,9 @@ sign_file = "tex_signature_colt_c2.txt" # Signature file Colt's Tex
 #sign_file = "tcf1_fc25_tumor_c0.txt"
 #sign_file = "cd26_c1_all_tumor_v1.txt"
 #sign_file = "prolifera_oncotype.txt"
-#sign_file = "proliferative_gene_immunity"
+#sign_file = "proliferative_gene_immunity.txt"
 #sign_file = "interferon_gamma_signature.txt"
+#sign_file = "tcf1_fc50_all_tumor_03012021.txt"
 
 
 histype = "IDC" # histology type: IDC/DCIS
@@ -216,29 +214,29 @@ proli = ""  # proliferation group based on 19 genes
 gdoi = 0 # Grade of interest: 1/2/3
 stageoi = 0 #c(3,4) # Stage of interest: 1/2/3/4
 Tstageoi = 0 # T stage of interest : T1/T2/T3/T4
-hrtype = c("N", "N", "N")# N: Negative, P: Positive, "-": DON'T CARE
+hrtype = ""#c("P", "-", "-")# N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "oneqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.5 #0.25 # This is TOP quantile for oneqcut approach
-gp_gene = "CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
+gp_gene = ""#"CD8A" # Group gene used for categorizing the cohort(if run cox regression of single gene)
 # Default "": use signature score 
 corr_by_group = FALSE # scatter correlation plot visualized by CD8/Tex group
-corr_gene = ""#c("PDCD1", "CD274")#("XCL1", "PDCD1", "IL7R","TIGIT","GZMB", "TCF7")#c("PDCD1", "CD274")#c("CD8A", "PTPRC", "CD3G") #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
+corr_gene = c("CD8A", "CD3G", "PTPRC", "SLAMF6")#("XCL1", "PDCD1", "IL7R","TIGIT","GZMB", "TCF7")#c("PDCD1", "CD274")#c("CD8A", "PTPRC", "CD3G") #c("CD8A", "CD3G", "ITGAE", "STAT1") # Genes need to be correlated with signature scores
 corr_gene_plot = FALSE # check correlated genes expression in CD8/Tex group
 gptype = "Tex sig.score"
 trt_type = "" #c("ct", "rt", "ht") # check the correlation between sig.score and treatment
 diff_expr = FALSE # run differential analysis based on signature group
-strata = 2 # use one or two markers to stratify survival curve
+strata = 1 # use one or two markers to stratify survival curve
 group_num = 4 # survival analysis using 3 or 4 grouping
 sig_by_grade = FALSE # check sig.score in different cancer grade
-group_in_priMarker = TRUE ##second group strata within the primary gene marker group
+group_in_priMarker = FALSE ##second group strata within the primary gene marker group
 
 
 
 #################################################################################
 # Work for experiment records
 
-res_folder = "one50_CD8A_Tex_IDC_TNBC_cbpt_dmfs_four" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym50_Tex_all_slamf6_cbpt" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
@@ -692,7 +690,7 @@ if(corr_gene != "") { cat("Extract gene expression from expression data to subty
 }
 #qcov <- all_cutoff
 #qcov<-CD8_qcov
-
+stop()
 #################################################################################
 ## Assign groups
 if (length(qcov) == 1) {
@@ -1003,7 +1001,7 @@ if (sig_by_grade) {cat("Generate boxplot of Tex sig.score in different cancer gr
 	ggsave(g, file = paste(res_dir, "grade_tex_score_boxplot.tiff", sep = ""), width = 5, height = 6, dpi= 300, units = "in", device = "tiff")
 }
 
-
+stop()
 #differential expression analysis in high/low Tex group
 if (diff_expr) {cat("Perform differential analysis in subgroup\n")
 	if (db_name == "metabric") { cat("Run limma in subgroup\n") #limma package for microarray data

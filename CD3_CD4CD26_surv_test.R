@@ -204,7 +204,7 @@ sign_file = "cd26_c1_all_tumor_v1.txt"
 histype = "IDC" # histology type: IDC/DCIS
 pamst = ""#c("LumA", "LumB") # PAM50 status: LumA/LumB/Basal/Normal/Her2
 gdoi = 0 #c(1) # Grade of interest: 1/2/3
-hrtype = c("P", "-", "-") # N: Negative, P: Positive, "-": DON'T CARE
+hrtype = c("N", "N", "N") # N: Negative, P: Positive, "-": DON'T CARE
 sig_save = FALSE
 gp_app = "symqcut"#"symqcut" # oneqcut: one quantile cutoff (upper percential), symqcut: symmetric quantile cutoff
 qcut = 0.5 #0.25 # This is TOP quantile for oneqcut approach
@@ -220,13 +220,13 @@ group_in_priMarker = TRUE
 
 #################################################################################
 # Work for experiment records
-res_folder = "sym50_CD3D_CD4CD26_ER_cbpt" # NOTE: Please change this folder name to identify your experiments
+res_folder = "sym50_CD4CD26_withinCD3D_TNBC_cbpt" # NOTE: Please change this folder name to identify your experiments
 res_dir = paste(sign_dir, res_folder, "/", sep ="")
 dir.create(file.path(sign_dir, res_folder), showWarnings = FALSE)
 # COPY the used script to the result folder for recording what experiment was run
 ### !!!Please change the script_dir to the folder directory where this script is located
 script_dir = "~/GitHub/surv_analysis/"
-script_name = "CD4CD26_surv_test.R"
+script_name = "CD3_CD4CD26_surv_test.R"
 file.copy(paste(script_dir, script_name, sep = ""), res_dir)  
 
 #################################################################################
@@ -663,98 +663,98 @@ if (strata ==2) {
 		high = subset(sub_scres, group == "High")
 		low = subset(sub_scres, group == "Low")
 
-		high$CD4_group = high$group
+		high$CD3_group = high$group
 		high$gpvalue = high$sig_score
 		qcov = quantile(high$sig_score, c(1-qcut)) 
 		high$group = "Medium"
 		high[high$gpvalue <= qcov[[1]],"group"] = "Low"  
 		high[high$gpvalue > qcov[[1]],"group"] = "High"
 
-		survana(data = high, type = "os", plot = res_dir, gptype = "CD4high",
+		survana(data = high, type = "os", plot = res_dir, gptype = "CD3high",
 			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
-		survana(data = high, type = "rfs", plot = res_dir, gptype = "CD4high",
+		survana(data = high, type = "rfs", plot = res_dir, gptype = "CD3high",
 			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
-		survana(data = high, type = "dmfs", plot = res_dir, gptype = "CD4high",
+		survana(data = high, type = "dmfs", plot = res_dir, gptype = "CD3high",
 			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
 
-		low$CD4_group = low$group
+		low$CD3_group = low$group
 		low$gpvalue = low$sig_score
 		qcov = quantile(low$sig_score, c(1-qcut)) 
 		low$group = "Medium"
 		low[low$gpvalue <= qcov[[1]],"group"] = "Low"  
 		low[low$gpvalue > qcov[[1]],"group"] = "High"
-		survana(data = low, type = "os", plot = res_dir, gptype = "CD4low",
+		survana(data = low, type = "os", plot = res_dir, gptype = "CD3low",
 			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
-		survana(data = low, type = "rfs", plot = res_dir, gptype = "CD4low",
+		survana(data = low, type = "rfs", plot = res_dir, gptype = "CD3low",
 			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
-		survana(data = low, type = "dmfs", plot = res_dir, gptype = "CD4low",
+		survana(data = low, type = "dmfs", plot = res_dir, gptype = "CD3low",
 			cox = "", coxfac = c("age","tsize", "grade", "node_stat"), gdoi = gdoi)
 		
 		sub_scres = rbind(high, low)
 
 		sub_scres$CD26_group<-sub_scres$group
-		sub_scres$group[sub_scres$CD4_group=="High" & sub_scres$CD26_group == "High"]="CD4hiCD26hi"
-		sub_scres$group[sub_scres$CD4_group=="High" & sub_scres$CD26_group == "Low"]="CD4hiCD26lo"
-		sub_scres$group[sub_scres$CD4_group=="Low" & sub_scres$CD26_group == "Low"]="CD4loCD26lo"
-		sub_scres$group[sub_scres$CD4_group=="Low" & sub_scres$CD26_group == "High"]="CD4loCD26hi"
-		sub_scres$group<-factor(sub_scres$group, levels = c("CD4hiCD26hi", "CD4hiCD26lo", "CD4loCD26hi", "CD4loCD26lo"))
+		sub_scres$group[sub_scres$CD3_group=="High" & sub_scres$CD26_group == "High"]="CD3hiCD26hi"
+		sub_scres$group[sub_scres$CD3_group=="High" & sub_scres$CD26_group == "Low"]="CD3hiCD26lo"
+		sub_scres$group[sub_scres$CD3_group=="Low" & sub_scres$CD26_group == "Low"]="CD3loCD26lo"
+		sub_scres$group[sub_scres$CD3_group=="Low" & sub_scres$CD26_group == "High"]="CD3loCD26hi"
+		sub_scres$group<-factor(sub_scres$group, levels = c("CD3hiCD26hi", "CD3hiCD26lo", "CD3loCD26hi", "CD3loCD26lo"))
 
-		numhh <- sum(sub_scres$CD4_group =="High" & sub_scres$CD26_group == "High")
-		numhl <- sum(sub_scres$CD4_group =="High" & sub_scres$CD26_group == "Low")
-		numlh <- sum(sub_scres$CD4_group =="Low" & sub_scres$CD26_group == "High")
-		numll <- sum(sub_scres$CD4_group =="Low" & sub_scres$CD26_group == "Low")
+		numhh <- sum(sub_scres$CD3_group =="High" & sub_scres$CD26_group == "High")
+		numhl <- sum(sub_scres$CD3_group =="High" & sub_scres$CD26_group == "Low")
+		numlh <- sum(sub_scres$CD3_group =="Low" & sub_scres$CD26_group == "High")
+		numll <- sum(sub_scres$CD3_group =="Low" & sub_scres$CD26_group == "Low")
 
 
-		fit <- survfit(Surv(ost, ose) ~ CD4_group+CD26_group, data=sub_scres)
+		fit <- survfit(Surv(ost, ose) ~ CD3_group+CD26_group, data=sub_scres)
 		survcurv <- ggsurvplot(fit, data = sub_scres,
 						       xlim = c(0,11000), ylim = c(0.00, 1.00),
 						       pval = TRUE, pval.size = 6, pval.coord = c(7500, 0.1),
 						       conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
 						       xlab = "Time (days)", ylab = "Overall Survival", legend.title = "",
-						       legend.labs = c(paste("CD4hiCD26hi, n =",numhh), paste("CD4hiCD26lo, n =",numhl) ,paste("CD4loCD26hi, n =",numlh), paste("CD4loCD26lo, n =",numll)),
+						       legend.labs = c(paste("CD3hiCD26hi, n =",numhh), paste("CD3hiCD26lo, n =",numhl) ,paste("CD3loCD26hi, n =",numlh), paste("CD3loCD26lo, n =",numll)),
 		#                                      surv.median.line = "hv",
 						       ggtheme = theme_classic(),
 						       palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
 						       font.x = c(14, "bold"), font.y = c(18, "bold"), 
 						       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
 						       risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
-		surv_plot <- paste(res_dir,"os_four_survana_cd26group_within_cd4.tiff", sep="")
+		surv_plot <- paste(res_dir,"os_four_survana_cd26group_within_CD3.tiff", sep="")
 		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
 
-		fit <- survfit(Surv(rfst, rfse) ~ CD4_group+CD26_group, data=sub_scres)
+		fit <- survfit(Surv(rfst, rfse) ~ CD3_group+CD26_group, data=sub_scres)
 		survcurv <- ggsurvplot(fit, data = sub_scres,
 						       xlim = c(0,11000), ylim = c(0.00, 1.00),
 						       pval = TRUE, pval.size = 6, pval.coord = c(7500, 0.1),
 						       conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
 						       xlab = "Time (days)", ylab = "Relapse-free Survival", legend.title = "",
-						       legend.labs = c(paste("CD4hiCD26hi, n =",numhh), paste("CD4hiCD26lo, n =",numhl) ,paste("CD4loCD26hi, n =",numlh), paste("CD4loCD26lo, n =",numll)),
+						       legend.labs = c(paste("CD3hiCD26hi, n =",numhh), paste("CD3hiCD26lo, n =",numhl) ,paste("CD3loCD26hi, n =",numlh), paste("CD3loCD26lo, n =",numll)),
 		#                                      surv.median.line = "hv",
 						       ggtheme = theme_classic(),
 						       palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
 						       font.x = c(14, "bold"), font.y = c(18, "bold"), 
 						       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
 						       risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
-		surv_plot <- paste(res_dir,"rfs_four_survana_cd26group_within_cd4.tiff", sep="")
+		surv_plot <- paste(res_dir,"rfs_four_survana_cd26group_within_CD3.tiff", sep="")
 		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
 
-		fit <- survfit(Surv(dmfs, dmfe) ~ CD4_group+CD26_group, data=sub_scres)
+		fit <- survfit(Surv(dmfs, dmfe) ~ CD3_group+CD26_group, data=sub_scres)
 		survcurv <- ggsurvplot(fit, data = sub_scres,
 						       xlim = c(0,11000), ylim = c(0.00, 1.00),
 						       pval = TRUE, pval.size = 6, pval.coord = c(7500, 0.1),
 						       conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
 						       xlab = "Time (days)", ylab = "Distal Metastasis-free Survival", legend.title = "",
-						       legend.labs = c(paste("CD4hiCD26hi, n =",numhh), paste("CD4hiCD26lo, n =",numhl) ,paste("CD4loCD26hi, n =",numlh), paste("CD4loCD26lo, n =",numll)),
+						       legend.labs = c(paste("CD3hiCD26hi, n =",numhh), paste("CD3hiCD26lo, n =",numhl) ,paste("CD3loCD26hi, n =",numlh), paste("CD3loCD26lo, n =",numll)),
 		#                                      surv.median.line = "hv",
 						       ggtheme = theme_classic(),
 						       palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
 						       font.x = c(14, "bold"), font.y = c(18, "bold"), 
 						       font.tickslab = c(16, "plain", "black"), font.legend = c(18, "bold"),
 						       risk.table = FALSE, ncensor.plot = FALSE, legend = c(0.2, 0.17))
-		surv_plot <- paste(res_dir,"dmfs_four_survana_group_within_cd4.tiff", sep="")
+		surv_plot <- paste(res_dir,"dmfs_four_survana_group_within_CD3.tiff", sep="")
 		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
 
 	} else {
-		sub_scres[,"CD4_group"] = sub_scres[,"group"]
+		sub_scres[,"CD3_group"] = sub_scres[,"group"]
 		sub_scres[,"gpvalue"] = sub_scres[,"sig_score"]
 		qcov = quantile(sub_scres$gpvalue, c(1-qcut))
 		#qcov<-tex_qcov
@@ -762,18 +762,18 @@ if (strata ==2) {
 		sub_scres[sub_scres$gpvalue <= qcov[[1]],"group"] = "Low"  
 		sub_scres[sub_scres$gpvalue > qcov[[1]],"group"] = "High"
 		
-		numhh <- sum(sub_scres$CD4_group =="High" & sub_scres$group == "High")
-		numhl <- sum(sub_scres$CD4_group =="High" & sub_scres$group == "Low")
-		numlh <- sum(sub_scres$CD4_group =="Low" & sub_scres$group == "High")
-		numll <- sum(sub_scres$CD4_group =="Low" & sub_scres$group == "Low")
+		numhh <- sum(sub_scres$CD3_group =="High" & sub_scres$group == "High")
+		numhl <- sum(sub_scres$CD3_group =="High" & sub_scres$group == "Low")
+		numlh <- sum(sub_scres$CD3_group =="Low" & sub_scres$group == "High")
+		numll <- sum(sub_scres$CD3_group =="Low" & sub_scres$group == "Low")
 
-		fit <- survfit(Surv(ost, ose) ~ CD4_group+group, data=sub_scres)
+		fit <- survfit(Surv(ost, ose) ~ CD3_group+group, data=sub_scres)
 		survcurv <- ggsurvplot(fit, data = sub_scres,
 						       xlim = c(0,11000), ylim = c(0.00, 1.00),
 						       pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
 						       conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
 						       xlab = "Time (days)", ylab = "Overall Survival", legend.title = "",
-						       legend.labs = c(paste("CD4hiCD26hi, n =",numhh), paste("CD4hiCD26lo, n =",numhl) ,paste("CD4loCD26hi, n =",numlh), paste("CD4loCD26lo, n =",numll)),
+						       legend.labs = c(paste("CD3hiCD26hi, n =",numhh), paste("CD3hiCD26lo, n =",numhl) ,paste("CD3loCD26hi, n =",numlh), paste("CD3loCD26lo, n =",numll)),
 		#                                       surv.median.line = "hv",
 						       ggtheme = theme_classic(),
 						       palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
@@ -784,13 +784,13 @@ if (strata ==2) {
 		ggsave(surv_plot, plot = survcurv$plot, dpi = 300, width = 9, height = 6, units = 'in')
 		
 
-		fit <- survfit(Surv(rfst, rfse) ~ CD4_group+group, data=sub_scres)
+		fit <- survfit(Surv(rfst, rfse) ~ CD3_group+group, data=sub_scres)
 		survcurv <- ggsurvplot(fit, data = sub_scres,
 						       xlim = c(0,11000), ylim = c(0.00, 1.00),
 						       pval = TRUE, pval.size = 6, pval.coord = c(8500, 0.12),
 						       conf.int = FALSE, conf.int.alpha = 0.2, #legend = "none",
 						       xlab = "Time (days)", ylab = "Relapse-free Survival", legend.title = "",
-						       legend.labs = c(paste("CD4hiCD26hi, n =",numhh), paste("CD4hiCD26lo, n =",numhl) ,paste("CD4loCD26hi, n =",numlh), paste("CD4loCD26lo, n =",numll)),
+						       legend.labs = c(paste("CD3hiCD26hi, n =",numhh), paste("CD3hiCD26lo, n =",numhl) ,paste("CD3loCD26hi, n =",numlh), paste("CD3loCD26lo, n =",numll)),
 		#                                      surv.median.line = "hv",
 						       ggtheme = theme_classic(),
 						       palette = c("#D15466", "#0A9CC7","#D15466","#0A9CC7"), linetype = c(1,1,2,2), 
