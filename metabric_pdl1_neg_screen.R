@@ -13,10 +13,10 @@ suppressMessages(library(survMisc))
 data_dir <- "C:/Users/wguo/OneDrive - City of Hope National Medical Center/tmp_works/tam_surv/METABRIC/brca_metabric"
 sig_dir <- "C:/Users/wguo/OneDrive - City of Hope National Medical Center/tmp_works/tam_surv"
 hr_subtype <- "ER" # ER, regardless of HER2; HER2+, ER-/PR-/HER2+; TNBC, ER-/PR-/HER2-
-oncotree <- "IDC"
+oncotree <- "IDC" # ALL: use all the samples
 strict <- TRUE
 
-res_folder <- paste(hr_subtype, oncotree, "pdl1_neg_tam_rf_metabric", sep = "_")
+res_folder <- paste(hr_subtype, oncotree, "pdl1_neg_tam_rf_metabric", sep = "_") # Change here to change the output folder names
 dir.create(file.path(sig_dir, res_folder), showWarnings = FALSE)
 ppf <- paste(sig_dir, "/", res_folder, "/", hr_subtype, "_", oncotree, "_", sep = "")
 
@@ -64,13 +64,12 @@ if (strict) {
   ppf <- paste(ppf, "strict_", sep = "")
 }
 cat("Merging all the data...\n")
-use_sign <- sign[sign$gene %in% intersect(sigh$gene, expr$gene),]
-sign_expr <- expr[expr$gene %in% intersect(sign$gene, expr$gene),]
-
+# sig_genes <- sign_expr$gene
+sig_genes <- c("SPP1", "FABP5", "COL1A2") # CHANGE HERE
+use_sign <- sign[sign$gene %in% intersect(sig_genes, expr$gene),]
+sign_expr <- expr[expr$gene %in% intersect(sig_genes, expr$gene),]
 
 ##### MCPcounter ####
-sig_genes <- sign_expr$gene
-sig_genes <- c("SPP1", "FABP5", "COL1A2") # CHANGE HERE
 use_expr <- sign_expr[,intersect(use_cln$PATIENT_ID, colnames(sign_expr))]
 use_cln <- use_cln[use_cln$PATIENT_ID %in% colnames(use_expr),]
 rownames(use_cln) <- use_cln$PATIENT_ID
@@ -147,8 +146,6 @@ gar <- dev.off()
 
 
 ##### MCPcounter/CD68 ####
-sig_genes <- sign_expr$gene
-sig_genes <- c("CD274", "SPP1") # CHANGE HERE
 use_expr <- sign_expr[,intersect(use_cln$PATIENT_ID, colnames(sign_expr))]
 use_cln <- use_cln[use_cln$PATIENT_ID %in% colnames(use_expr),]
 rownames(use_cln) <- use_cln$PATIENT_ID
