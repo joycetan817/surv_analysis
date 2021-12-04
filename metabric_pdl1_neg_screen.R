@@ -65,7 +65,7 @@ if (strict) {
 }
 cat("Merging all the data...\n")
 # sig_genes <- sign_expr$gene
-sig_genes <- c("SPP1", "FABP5", "COL1A2") # CHANGE HERE
+sig_genes <- c("CD8A")#, "FABP5", "COL1A2") # CHANGE HERE
 use_sign <- sign[sign$gene %in% intersect(sig_genes, expr$gene),]
 sign_expr <- expr[expr$gene %in% intersect(sig_genes, expr$gene),]
 
