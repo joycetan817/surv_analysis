@@ -75,6 +75,17 @@ use_cln <- use_cln[use_cln$PATIENT_ID %in% colnames(use_expr),]
 rownames(use_cln) <- use_cln$PATIENT_ID
 use_df <- use_cln[colnames(use_expr),]
 use_df$MCP_sign <- colMeans(use_expr)
+
+use_df$CD274 <- t(log2(expr[expr$gene == "CD274", colnames(use_expr)]+1.0))
+cd274_sig_gg <- ggscatter(use_df, x = "MCP_sign", y = "CD274",
+                          color = "black", size = 1, # Points color, shape and size
+                          add = "reg.line",  # Add regressin line
+                          add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+                          conf.int = TRUE, # Add confidence interval
+                          cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+                          cor.coeff.args = list(method = "pearson", label.sep = "\n"))
+ggsave(paste(ppf, 'MCP_PDL1_correlation.png', sep = ''), cd274_sig_gg, dpi = 300, width = 4, height = 4)
+
 use_df$RFS_STATUS <- ifelse(str_detect(use_df$RFS_STATUS, "0"), 0, 1)
 
 fit <- coxph(Surv(RFS_MONTHS, RFS_STATUS) ~ AGE_AT_DIAGNOSIS + GRADE + TUMOR_SIZE + TUMOR_STAGE + MCP_sign, data = use_df)
