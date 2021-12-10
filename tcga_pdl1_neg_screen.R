@@ -79,17 +79,29 @@ if (strict) {
 }
 
 cat("Merging all the data...\n")
-use_sign <- sign[sign$gene %in% intersect(sign$gene, expr$gene),]
-sign_expr <- expr[expr$gene %in% intersect(sign$gene, expr$gene),]
+sig_genes <- c("CD68")#, "FABP5", "COL1A2") # CHANGE HERE
+use_sign <- sign[sign$gene %in% intersect(sig_genes, expr$gene),]
+sign_expr <- expr[expr$gene %in% intersect(sig_genes, expr$gene),]
 
 ##### MCPcounter ####
-sig_genes <- sign_expr$gene
+# sig_genes <- sign_expr$gene
 use_expr <- sign_expr[,intersect(use_cln$SAMPLE_ID, colnames(sign_expr))]
 use_expr <- log2(use_expr+1.0)
 use_cln <- use_cln[use_cln$SAMPLE_ID %in% colnames(use_expr),]
 rownames(use_cln) <- use_cln$SAMPLE_ID
 use_df <- use_cln[colnames(use_expr),]
 use_df$MCP_sign <- colMeans(use_expr)
+
+use_df$CD274 <- t(log2(expr[expr$gene == "CD274", colnames(use_expr)]+1.0))
+cd274_sig_gg <- ggscatter(use_df, x = "MCP_sign", y = "CD274",
+                          color = "black", size = 1, # Points color, shape and size
+                          add = "reg.line",  # Add regressin line
+                          add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+                          conf.int = TRUE, # Add confidence interval
+                          cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+                          cor.coeff.args = list(method = "pearson", label.sep = "\n"))
+ggsave(paste(ppf, 'MCP_PDL1_correlation.png', sep = ''), cd274_sig_gg, dpi = 300, width = 4, height = 4)
+
 use_df$RFS_STATUS <- ifelse(str_detect(use_df$RFS_STATUS, "0"), 0, 1)
 
 fit <- coxph(Surv(RFS_MONTHS, RFS_STATUS) ~ AGE + grade + MCP_sign, data = use_df)
@@ -158,7 +170,7 @@ print(surv_gg)
 gar <- dev.off()
 
 ##### MCPcounter/CD68 ####
-sig_genes <- sign_expr$gene
+# sig_genes <- sign_expr$gene
 use_expr <- sign_expr[,intersect(use_cln$SAMPLE_ID, colnames(sign_expr))]
 use_cln <- use_cln[use_cln$SAMPLE_ID %in% colnames(use_expr),]
 rownames(use_cln) <- use_cln$SAMPLE_ID
