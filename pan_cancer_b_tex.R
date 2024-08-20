@@ -9,6 +9,7 @@ suppressMessages(library(ggpubr))
 suppressMessages(library(circlize))
 suppressMessages(library(survival))
 suppressMessages(library(survminer))
+suppressMessages(library(forestmodel))
 suppressMessages(library(ComplexHeatmap))
 suppressMessages(library(ggwordcloud))
 
@@ -57,7 +58,47 @@ if (ratio_surv_flag) {
 	score_df <- read.csv(paste(data_dir, score_file, sep = "/"), sep = ",")
 	score_df$ID <- str_replace_all(score_df$pid, "\\.", "-")
 	score_df$tex_cd8a_ratio <- score_df$Tex/score_df$CD8A
+	score_df$tex_cd8a_ratio_group <- ifelse(score_df$tex_cd8a_ratio > median(score_df$tex_cd8a_ratio), "High", "Low")
 	print(head(score_df))
+	tmp_lfit <- survfit(Surv(ost, ose) ~ tex_cd8a_ratio_group, data = score_df, id = ID)
+	tmp_lgg <- ggsurvplot(tmp_lfit, pval = T, ggtheme = theme_bw(), legend = "right") + 
+		labs(title = "All cancer types", x = "Time (day)", color = "Tex/CD8A ratio (median)") 		
+	png(paste(ppf, 'all_cancer_tex_cd8a_ratio_median_kmplot.png', sep = ""), res = 300, width = 9, height = 4, units = 'in')
+	print(tmp_lgg)
+	gar <- dev.off()
+	tmp_cox <- coxph(Surv(ost, ose) ~ tex_cd8a_ratio_group, data=score_df, id=ID, ties="breslow")
+	write.csv(summary(tmp_cox)$coefficients, paste(ppf, 'all_cancer_tex_cd8a_ratio_median_cox.csv', sep = ""))
+
+	png(paste(ppf, 'all_cancer_tex_cd8a_ratio_median_forestmodel_hr.png', sep = ""), res = 300, width = 9, height = 4, units = 'in')
+	print(forest_model(coxph(Surv(ost, ose) ~ tex_cd8a_ratio_group, data=score_df))+labs(title = "All cancer types"))
+	gar <- dev.off()
+	png(paste(ppf, 'all_cancer_tex_cd8a_ratio_median_forestmodel_ratio.png', sep = ""), res = 300, width = 9, height = 4, units = 'in')
+	print(forest_model(coxph(Surv(ost, ose) ~ tex_cd8a_ratio, data=score_df))+labs(title = "All cancer types"))
+	gar <- dev.off()
+
+
+	for (ic in unique(score_df$cancertype)) {
+		tmp_df <- score_df[score_df$cancertype == ic,]
+		tmp_df$tex_cd8a_ratio <- tmp_df$Tex/tmp_df$CD8A
+		tmp_df$tex_cd8a_ratio_group <- ifelse(tmp_df$tex_cd8a_ratio > median(tmp_df$tex_cd8a_ratio), "High", "Low")
+		print(head(tmp_df))
+		tmp_lfit <- survfit(Surv(ost, ose) ~ tex_cd8a_ratio_group, data = tmp_df, id = ID)
+		tmp_lgg <- ggsurvplot(tmp_lfit, pval = T, ggtheme = theme_bw(), legend = "right") + 
+			labs(title = ic, x = "Time (day)", color = "Tex/CD8A ratio (median)") 		
+		png(paste(ppf, ic, '_tex_cd8a_ratio_median_kmplot.png', sep = ""), res = 300, width = 9, height = 4, units = 'in')
+		print(tmp_lgg)
+		gar <- dev.off()
+		tmp_cox <- coxph(Surv(ost, ose) ~ tex_cd8a_ratio_group, data=tmp_df, id=ID, ties="breslow")
+		write.csv(summary(tmp_cox)$coefficients, paste(ppf, ic, '_tex_cd8a_ratio_median_cox.csv', sep = ""))
+
+		png(paste(ppf, ic, '_tex_cd8a_ratio_median_forestmodel_hr.png', sep = ""), res = 300, width = 9, height = 4, units = 'in')
+		print(forest_model(coxph(Surv(ost, ose) ~ tex_cd8a_ratio_group, data=tmp_df))+labs(title = ic))
+		gar <- dev.off()
+		png(paste(ppf, ic, '_tex_cd8a_ratio_median_forestmodel_ratio.png', sep = ""), res = 300, width = 9, height = 4, units = 'in')
+		print(forest_model(coxph(Surv(ost, ose) ~ tex_cd8a_ratio, data=tmp_df))+labs(title = ic))
+		gar <- dev.off()
+	}
+
 
 }
 
