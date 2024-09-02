@@ -18,7 +18,7 @@ score_file <- "all_gene_signature_pancancer_chrom_instab_update1017.csv"
 timer_file <- "infiltration_estimation_for_tcga.csv"
 ksdr_dir <- "Kassandra_TCGA"
 
-expr_id <- "b_tex_corr_240818"
+expr_id <- "hypoxia_tex_corr_240902"
 
 dir.create(file.path(data_dir, expr_id), showWarnings = FALSE)
 expDir <- paste(data_dir, expr_id, sep = "/")
@@ -28,8 +28,8 @@ set.seed(669)
 
 ksdr_merge_flag <- FALSE
 b_tex_corr_flag <- FALSE
-b_tex_corr_vis_flag <- FALSE
-ratio_surv_flag <- TRUE
+b_tex_corr_vis_flag <- TRUE
+ratio_surv_flag <- FALSE
 
 if (ksdr_merge_flag) {
 	all_files <- list.files(paste(data_dir, ksdr_dir, sep = "/"))
@@ -201,7 +201,7 @@ if (b_tex_corr_vis_flag) {
 	print(unique(cor_res$clean_cell))
 
 
-	tex_res <- cor_res[cor_res$var1 == "Tex",]
+	tex_res <- cor_res[cor_res$var1 == "hypoxia",]
 	sum_res <- tex_res %>%
 		group_by(clean_cell) %>%
 		summarize(avg_cor = mean(cor), 
@@ -218,12 +218,12 @@ if (b_tex_corr_vis_flag) {
 		scale_color_gradient2(midpoint = 0, high = "firebrick", low = "dodgerblue") +
 		theme_minimal() +
 		theme(legend.position = "right")
-	ggsave(paste(ppf, "pearson_tex_clean_cell_cloud.png", sep = ""), dpi = 300, width = 12, height = 9)
+	ggsave(paste(ppf, "pearson_hypoxia_clean_cell_cloud.png", sep = ""), dpi = 300, width = 12, height = 9)
 
 	for (it in unique(cor_res$tool)) {
 		cat(it, "\n")
 		tmp_res <- cor_res[cor_res$tool == it,]
-		tmp_res <- tmp_res[tmp_res$var1 == "Tex",]
+		tmp_res <- tmp_res[tmp_res$var1 == "hypoxia",]
 #		print(head(tmp_res))
 #		print(dim(tmp_res))
 
@@ -231,15 +231,16 @@ if (b_tex_corr_vis_flag) {
 		geom_point(aes(color = cor, size = p.signif)) +
 		scale_size_manual(values = c("ns" = 0.1, "*" = 2, "**" = 4, "***" = 6, "****" = 8)) +
 		scale_color_gradient2(midpoint = 0, high = "firebrick", low = "dodgerblue") +
-		labs(x = paste("Cell types in", it), color = "PCC with\nTex signature\nscores", size = "Statistic\nsignificance", y = "Tex") +
+		labs(x = paste("Cell types in", it), color = "PCC with\nhypoxia signature\nscores", size = "Statistic\nsignificance", y = "Tex") +
 		theme_bw() +
 		theme(axis.text.x = element_text(angle = 45, hjust = 1),
 		      strip.text.x = element_text(angle = 45), legend.position = "right"
 		)
-		ggsave(paste(ppf, it, "_pearson_tex_vs_b_dot_all_score.png", sep = ""), dpi = 300, width = 1.8+0.5*nrow(tmp_res), height = 6)
+		ggsave(paste(ppf, it, "_pearson_hypoxia_vs_b_dot_all_score.png", sep = ""), dpi = 300, width = 1.8+0.5*nrow(tmp_res), height = 6)
 
 	}
 
+	if (FALSE) {#B2
 	tex_b_res <- cor_res[cor_res$var1 == "Tex",]
 	tex_b_res <- tex_b_res[str_detect(tex_b_res$var2, "B cell"),]
 
@@ -255,7 +256,8 @@ if (b_tex_corr_vis_flag) {
 		theme(axis.text.x = element_text(angle = 45, hjust = 1),
 		      strip.text.x = element_text(angle = 45), legend.position = "top"
 		)
-	ggsave(paste(ppf, "pearson_tex_vs_b_dot_all_score.png", sep = ""), dpi = 300, width = 12, height = 6)
+	ggsave(paste(ppf, "pearson_hypoxia_vs_b_dot_all_score.png", sep = ""), dpi = 300, width = 12, height = 6)
+	}#B2
 
 	cor_res <- read.csv(paste(data_dir, "pearson_correlation_per_cancer_all_scores_result.csv", sep = "/"), row.names = 1)
 	cor_res$tool <- str_split_fixed(cor_res$var2, "_", n = 2)[,2]
@@ -277,7 +279,7 @@ if (b_tex_corr_vis_flag) {
 
 	for (ic in unique(cor_res$cancertype)) {
 		cat(ic, "\n")
-		tex_res <- cor_res[cor_res$var1 == "Tex",]
+		tex_res <- cor_res[cor_res$var1 == "hypoxia",]
 		tex_res <- tex_res[tex_res$cancertype == ic,]
 		sum_res <- tex_res %>%
 			group_by(clean_cell) %>%
@@ -296,14 +298,13 @@ if (b_tex_corr_vis_flag) {
 			labs(title = ic) +
 			theme_minimal() +
 			theme(legend.position = "right")
-		ggsave(paste(ppf, ic, "_pearson_tex_clean_cell_cloud.png", sep = ""), dpi = 300, width = 12, height = 9)
+		ggsave(paste(ppf, ic, "_pearson_hypoxia_clean_cell_cloud.png", sep = ""), dpi = 300, width = 12, height = 9)
 	}
-	q(save = "no")
 
 	for (it in unique(cor_res$tool)) {
 		cat(it, "\n")
 		tmp_res <- cor_res[cor_res$tool == it,]
-		tmp_res <- tmp_res[tmp_res$var1 == "Tex",]
+		tmp_res <- tmp_res[tmp_res$var1 == "hypoxia",]
 #		print(head(tmp_res))
 #		print(dim(tmp_res))
 
@@ -311,16 +312,16 @@ if (b_tex_corr_vis_flag) {
 		geom_point(aes(color = cor, size = p.signif)) +
 		scale_size_manual(values = c("ns" = 0.1, "*" = 2, "**" = 4, "***" = 6, "****" = 8)) +
 		scale_color_gradient2(midpoint = 0, high = "firebrick", low = "dodgerblue") +
-		labs(x = paste("Cell types in", it), color = "PCC with\nTex signature\nscores", size = "Statistic\nsignificance", y = "Cancer types") +
+		labs(x = paste("Cell types in", it), color = "PCC with\nhypoxia signature\nscores", size = "Statistic\nsignificance", y = "Cancer types") +
 		theme_bw() +
 		theme(axis.text.x = element_text(angle = 45, hjust = 1),
 		      strip.text.x = element_text(angle = 45), legend.position = "right"
 		)
-		ggsave(paste(ppf, it, "_pearson_tex_vs_b_dot_per_cancertype_score.png", sep = ""), dpi = 300, width = 1.8+0.5*length(unique(tmp_res$cell)), height = 6)
+		ggsave(paste(ppf, it, "_pearson_hypoxia_vs_b_dot_per_cancertype_score.png", sep = ""), dpi = 300, width = 1.8+0.5*length(unique(tmp_res$cell)), height = 6)
 
 
 		cor_df <- spread(tmp_res[,c("cancertype", "var2", "cor")], "var2", "cor")
-		col_max <- max(c(max(tex_b_res$cor), abs(min(tex_b_res$cor))))
+		col_max <- max(c(max(tmp_res$cor, na.rm = T), abs(min(tmp_res$cor, na.rm = T))))
 		rownames(cor_df) <- cor_df$cancertype
 		cor_df$cancertype <- NULL
 		col_df <- as.data.frame(str_split_fixed(colnames(cor_df), "_", n = 2))
@@ -328,8 +329,8 @@ if (b_tex_corr_vis_flag) {
 		color_fun = colorRamp2(c(-col_max, 0, col_max), c("dodgerblue", "white", "firebrick"))
 		colnames(cor_df) <- col_df$cell
 
-		hm <- Heatmap(cor_df, name = "PCC to Tex", col = color_fun, rect_gp = gpar(col = "white", lwd = 2))
-		png(paste(ppf, it, "_pearson_tex_vs_b_heatmap_per_cancertype_score.png", sep = ""), res = 300, width = 1.8+0.5*length(unique(tmp_res$cell)), height = 7, units = 'in')
+		hm <- Heatmap(cor_df, name = "PCC to hypoxia", col = color_fun, rect_gp = gpar(col = "white", lwd = 2))
+		png(paste(ppf, it, "_pearson_hypoxia_vs_b_heatmap_per_cancertype_score.png", sep = ""), res = 300, width = 1.8+0.5*length(unique(tmp_res$cell)), height = 7, units = 'in')
 		print(draw(hm))
 		gar <- dev.off()
 		print(dim(cor_df))
@@ -337,6 +338,7 @@ if (b_tex_corr_vis_flag) {
 
 	q(save = "no")
 
+	if (FALSE) {#B1
 	tex_b_res <- cor_res[cor_res$var1 == "Tex",]
 	tex_b_res <- tex_b_res[str_detect(tex_b_res$var2, "B cell"),]
 	print(head(tex_b_res))
@@ -351,7 +353,7 @@ if (b_tex_corr_vis_flag) {
 		theme(axis.text.x = element_text(angle = 45, hjust = 1),
 		      strip.text.x = element_text(angle = 45), legend.position = "top"
 		)
-	ggsave(paste(ppf, "pearson_tex_vs_b_dot_per_cancertype_score.png", sep = ""), dpi = 300, width = 12, height = 7)
+	ggsave(paste(ppf, "pearson_hypoxia_vs_b_dot_per_cancertype_score.png", sep = ""), dpi = 300, width = 12, height = 7)
 
 	cor_df <- spread(tex_b_res[,c("cancertype", "var2", "cor")], "var2", "cor")
 	col_max <- max(c(max(tex_b_res$cor), abs(min(tex_b_res$cor))))
@@ -362,8 +364,9 @@ if (b_tex_corr_vis_flag) {
 	color_fun = colorRamp2(c(-col_max, 0, col_max), c("dodgerblue", "white", "firebrick"))
 
 	hm <- Heatmap(cor_df, name = "PCC to Tex", col = color_fun, column_split = col_df$tool)
-	png(paste(ppf, "pearson_tex_vs_b_heatmap_per_cancertype_score.png", sep = ""), res = 300, width = 12, height = 7, units = 'in')
+	png(paste(ppf, "pearson_hypoxia_vs_b_heatmap_per_cancertype_score.png", sep = ""), res = 300, width = 12, height = 7, units = 'in')
 	print(draw(hm))
 	gar <- dev.off()
 	print(dim(cor_df))
+	}#B1
 }
